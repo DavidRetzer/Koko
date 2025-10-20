@@ -1,0 +1,324 @@
+<!--
+  Dieses Snippet enthält den gesamten HTML-, CSS- und JavaScript-Code für das Shinkoko Chat-Widget.
+  Es wird in das `theme.liquid`-Layout eines Shopify-Themes eingefügt, um auf allen Seiten des Shops verfügbar zu sein.
+  Das Widget kommuniziert mit der Vercel-Proxy-Funktion, um Antworten vom Gemini-Chatbot zu erhalten.
+-->
+
+<!-- HTML-Struktur des Chat-Widgets -->
+<div id="shinkoko-chatbot-container">
+    <!-- Button zum Ein- und Ausblenden des Chat-Fensters -->
+    <button id="chat-toggle-button" title="Chat öffnen/schließen">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+    </button>
+    <!-- Das eigentliche Chat-Fenster, initial ausgeblendet -->
+    <div id="chat-window" style="display: none;">
+        <div id="chat-header">
+            Shinkoko Tee-Berater
+            <!-- Button, um die Konversation zurückzusetzen -->
+            <button id="chat-new-session" title="Neue Konversation starten">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.5 15h16.29a9 9 0 1 0-.31-10.37"></path></svg>
+            </button>
+        </div>
+        <!-- Bereich zur Anzeige der Chat-Nachrichten -->
+        <div id="chat-messages"></div>
+        <!-- Eingabebereich für den Benutzer -->
+        <div id="chat-input-area">
+            <input type="text" id="chat-input" placeholder="Ihre Frage an Koko...">
+            <button id="chat-send">Senden</button>
+        </div>
+    </div>
+</div>
+
+<style>
+/* -------------------------------------- */
+/* CSS für das Shinkoko Chat-Widget       */
+/* -------------------------------------- */
+
+/* Container für das gesamte Widget, fixiert in der rechten unteren Ecke */
+#shinkoko-chatbot-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 10000; /* Stellt sicher, dass das Widget über anderen Elementen liegt */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Styling für den runden Button zum Öffnen des Chats */
+#chat-toggle-button {
+    background-color: #4a7c59; /* Markenfarbe von Shinkoko */
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#chat-toggle-button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+}
+
+/* Das Hauptfenster des Chats */
+#chat-window {
+    position: absolute;
+    bottom: 80px; /* Abstand über dem Toggle-Button */
+    right: 0;
+    width: 350px;
+    height: 500px;
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: opacity 0.2s, transform 0.2s;
+    transform-origin: bottom right;
+}
+
+/* Kopfzeile des Chat-Fensters */
+#chat-header {
+    background-color: #4a7c59; /* Markenfarbe */
+    color: white;
+    padding: 15px;
+    font-weight: bold;
+    font-size: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Button zum Starten einer neuen Sitzung */
+#chat-new-session {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+#chat-new-session:hover {
+    opacity: 1;
+}
+
+/* Bereich, in dem die Nachrichten angezeigt werden */
+#chat-messages {
+    flex-grow: 1;
+    padding: 15px;
+    overflow-y: auto;
+    background-color: #f9f9f9;
+}
+
+/* Allgemeines Styling für jede einzelne Nachricht */
+.message {
+    padding: 10px 15px;
+    margin-bottom: 10px;
+    border-radius: 18px;
+    max-width: 80%;
+    line-height: 1.4;
+    font-size: 14px;
+    word-wrap: break-word;
+}
+
+/* Styling für Nachrichten des Benutzers */
+.user-message {
+    background-color: #333;
+    color: white;
+    margin-left: auto;
+    border-bottom-right-radius: 5px;
+}
+
+/* Styling für Nachrichten des Bots */
+.bot-message {
+    background-color: #eef2ed;
+    color: #333;
+    margin-right: auto;
+    border-bottom-left-radius: 5px;
+}
+
+/* Styling für die "tippt..."-Nachricht */
+.loading {
+    font-style: italic;
+    color: #777;
+}
+
+/* Bereich für die Texteingabe */
+#chat-input-area {
+    display: flex;
+    border-top: 1px solid #e0e0e0;
+    padding: 10px;
+    background-color: white;
+}
+
+#chat-input {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 20px;
+    margin-right: 10px;
+    font-size: 14px;
+}
+
+#chat-send {
+    background-color: #4a7c59; /* Markenfarbe */
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background-color 0.2s;
+}
+#chat-send:hover {
+    background-color: #3b6347;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // --------------------------------------
+    // JAVASCRIPT für die Chat-Widget-Logik
+    // --------------------------------------
+
+    // --- Konfiguration ---
+    /**
+     * Die URL des Vercel-Proxy-Servers. Dies ist der einzige Endpunkt, mit dem das Frontend kommuniziert.
+     * WICHTIG: Ersetzen Sie dies durch Ihre tatsächliche Vercel-Deployment-URL.
+     */
+    const PROXY_SERVER_URL = "https://kokoproxy.vercel.app/api/chat";
+
+    /**
+     * Der geheime Schlüssel zur Authentifizierung.
+     * WICHTIG: Dieser Wert MUSS mit dem `CHATBOT_SECRET` übereinstimmen, der in den
+     * Vercel Environment Variables für Ihr Projekt festgelegt ist.
+     */
+    const CHATBOT_SECRET = "Ihr_sehr_langer_zufälliger_Geheimcode_den_Sie_in_Vercel_gespeichert_haben";
+
+    // --- DOM-Elemente ---
+    const chatToggle = document.getElementById('chat-toggle-button');
+    const chatWindow = document.getElementById('chat-window');
+    const chatMessages = document.getElementById('chat-messages');
+    const chatInput = document.getElementById('chat-input');
+    const chatSend = document.getElementById('chat-send');
+    const newSessionButton = document.getElementById('chat-new-session');
+
+    /**
+     * Speichert den Konversationsverlauf im Format, das von der Gemini API erwartet wird.
+     * Wird bei jeder Nachricht an die API gesendet, um den Kontext zu bewahren.
+     */
+    let chatHistory = [];
+
+    // --- Hilfsfunktionen ---
+
+    /**
+     * Initialisiert eine neue Chat-Sitzung oder setzt die aktuelle zurück.
+     * Leert das Nachrichtenfenster, setzt den Verlauf zurück und zeigt eine Willkommensnachricht an.
+     */
+    function startNewSession() {
+        chatMessages.innerHTML = '';
+        chatHistory = [];
+        addMessage("Hallo! Ich bin Koko, Ihr digitaler Tee-Berater. Wie kann ich Ihnen heute helfen?", 'bot-message');
+    }
+
+    /**
+     * Fügt eine Nachricht zum Chatfenster hinzu und speichert sie im `chatHistory`-Array.
+     * @param {string} text - Der anzuzeigende Nachrichtentext.
+     * @param {string} type - Der Typ der Nachricht ('user-message' oder 'bot-message').
+     */
+    function addMessage(text, type) {
+        const msgDiv = document.createElement('div');
+        msgDiv.textContent = text;
+        msgDiv.className = `message ${type}`;
+
+        chatMessages.appendChild(msgDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight; // Scrollt automatisch nach unten
+
+        // Bestimmt die Rolle für die API ('user' oder 'model')
+        const role = type.includes('user-message') ? 'user' : 'model';
+
+        // Fügt die Nachricht zum Verlauf hinzu, ignoriert aber temporäre Lade-Nachrichten.
+        if (!msgDiv.classList.contains('loading')) {
+            chatHistory.push({ role: role, parts: [{ text: text }] });
+        }
+    }
+
+    // --- Hauptlogik ---
+
+    /**
+     * Sendet die Benutzernachricht an den Proxy-Server und zeigt die Antwort des Bots an.
+     */
+    async function sendMessage() {
+        const message = chatInput.value.trim();
+        if (message === '') return;
+
+        addMessage(message, 'user-message');
+        chatInput.value = '';
+        chatInput.focus();
+
+        // Zeigt eine temporäre "tippt..."-Nachricht an.
+        addMessage("Koko tippt...", 'bot-message loading');
+
+        try {
+            const response = await fetch(PROXY_SERVER_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Chatbot-Secret': CHATBOT_SECRET // Sicherheits-Header
+                },
+                body: JSON.stringify({
+                    history: chatHistory // Sendet den gesamten bisherigen Verlauf
+                })
+            });
+
+            // Entfernt die "tippt..."-Nachricht, sobald die Antwort eintrifft.
+            document.querySelector('.loading')?.remove();
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || `HTTP-Fehler: ${response.status}`);
+            }
+
+            const data = await response.json();
+            addMessage(data.answer, 'bot-message');
+
+        } catch (error) {
+            console.error("Fehler bei der Kommunikation mit dem Chatbot-Proxy:", error);
+            document.querySelector('.loading')?.remove();
+            addMessage("Entschuldigung, ich bin momentan nicht erreichbar. Bitte versuchen Sie es später erneut.", 'bot-message');
+        }
+    }
+
+    // --- Event-Listener ---
+
+    // Öffnet und schließt das Chat-Fenster.
+    chatToggle.addEventListener('click', () => {
+        const isHidden = chatWindow.style.display === 'none';
+        chatWindow.style.display = isHidden ? 'flex' : 'none';
+        // Startet eine neue Sitzung, wenn das Fenster zum ersten Mal geöffnet wird.
+        if (isHidden && chatHistory.length === 0) {
+            startNewSession();
+        }
+        if(isHidden) {
+            chatInput.focus();
+        }
+    });
+
+    // Sendet eine Nachricht bei Klick auf den "Senden"-Button.
+    chatSend.addEventListener('click', sendMessage);
+
+    // Sendet eine Nachricht bei Drücken der Enter-Taste im Eingabefeld.
+    chatInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            sendMessage();
+        }
+    });
+
+    // Startet eine neue Konversation bei Klick auf den "Neu"-Button.
+    newSessionButton.addEventListener('click', startNewSession);
+});
+</script>

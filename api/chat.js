@@ -1,15 +1,27 @@
-// /api/chat.js
-// Diese Datei ist eine Vercel Serverless Function, die als Proxy für die Google Gemini API dient.
+/**
+ * @file /api/chat.js
+ *
+ * Dies ist eine Vercel Serverless Function, die als sicherer Proxy für die Google Gemini API dient.
+ * Sie empfängt den Chat-Verlauf von einem Frontend (z.B. einem Shopify-Shop oder einer lokalen Testseite),
+ * fügt einen detaillierten System-Prompt hinzu, der die Persönlichkeit und die Verhaltensregeln des Chatbots "Koko" definiert,
+ * und leitet die Anfrage sicher an die Gemini API weiter.
+ *
+ * Die Funktion ist für den produktiven Einsatz auf Vercel konzipiert und enthält Sicherheitsmechanismen wie
+ * eine CORS-Prüfung (Cross-Origin Resource Sharing) und die Validierung eines geheimen Headers.
+ */
 
 import { GoogleGenAI } from '@google/genai';
 
-// Initialisiert den Google Gemini Client.
-// Der API-Schlüssel wird sicher aus den Umgebungsvariablen geladen.
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY; 
+// Initialisiert den Google Gemini AI Client.
+// Der API-Schlüssel wird sicher aus den Umgebungsvariablen von Vercel geladen.
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const ai = new GoogleGenAI(GEMINI_API_KEY);
 
-// System Prompt: Definiert die Persönlichkeit, Regeln und das Verhalten des Chatbots "Koko".
-// Dieser Prompt stellt sicher, dass der Bot kontextbezogen, höflich und markenkonform antwortet.
+/**
+ * System-Prompt für den Gemini Chatbot "Koko".
+ * Dieser Prompt definiert die Persona, die Tonalität, die Kernaufgaben und die Verhaltensregeln des Bots.
+ * Er ist das Herzstück der Bot-Logik und stellt sicher, dass der Bot konsistent und im Sinne der Marke agiert.
+ */
 const SYSTEM_PROMPT = `
 1. Persona und Rolle: Du bist "Koko", der virtuelle Tee-Berater für den Online-Shop shinkoko.at. Deine Rolle ist die eines authentischen Experten für japanische Teespezialitäten und -kultur.
 
@@ -53,49 +65,93 @@ Nutzer: "Do you also sell English Breakfast tea?"
 Koko (Antwort): "We do not carry black teas like English Breakfast, as we specialize entirely in authentic Japanese (and soon Chinese) green tea specialties. However, if you are looking for a classic, comforting tea, may I introduce you to our Genmaicha? It's a wonderful green tea with roasted brown rice."
 `;
 
-// Haupteinstiegspunkt der Vercel Serverless Function.
+/**
+ * Eine Liste der erlaubten Ursprünge (Origins) für Browser-Anfragen.
+ * Dies ist eine wichtige Sicherheitsmaßnahme (CORS), um sicherzustellen, dass nur autorisierte
+ * Frontends (die produktive Shopify-Seite und die lokale Testumgebung) auf die API zugreifen können.
+ */
+const ALLOWED_ORIGINS = [
+    'https://shinkoko.at',   // Die produktive Shopify-Domain
+    'http://127.0.0.1:8080'  // Die URL für lokale Tests mit `test.html`
+];
+
+/**
+ * Der Wert des geheimen Headers, der zur Authentifizierung von Anfragen verwendet wird.
+ * Dieser Wert wird aus den Umgebungsvariablen geladen und muss mit dem Header `X-Chatbot-Secret`
+ * übereinstimmen, der vom Frontend gesendet wird. Dies bietet eine zusätzliche Sicherheitsebene.
+ */
+const SECRET_HEADER_VALUE = process.env.CHATBOT_SECRET;
+
+/**
+ * Der Haupteinstiegspunkt der Vercel Serverless Function.
+ * Diese Funktion verarbeitet eingehende HTTP-Anfragen.
+ * @param {object} req - Das Anfrageobjekt von Vercel (ähnlich Node.js http.IncomingMessage).
+ * @param {object} res - Das Antwortobjekt von Vercel (ähnlich Node.js http.ServerResponse).
+ */
 export default async function (req, res) {
-    // Setzt die CORS-Header, um Anfragen vom Frontend (lokal oder produktiv) zu erlauben.
-    // Die auskommentierte Zeile ist für die Live-Domain, die aktive für lokale Tests.
-    // res.setHeader('Access-Control-Allow-Origin', 'https://shinkoko.at'); 
-    res.setHeader('Access-Control-Allow-Origin', 'http://127.0.0.1:8080'); 
+    const origin = req.headers.origin;
+
+    // --- 1. Sicherheitsprüfung: CORS (Cross-Origin Resource Sharing) ---
+    // Überprüft, ob die Anfrage von einem erlaubten Ursprung kommt.
+    if (ALLOWED_ORIGINS.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+    } else {
+        // Blockiert Anfragen von nicht autorisierten Ursprüngen.
+        // Bei einer OPTIONS-Preflight-Anfrage wird eine neutrale Antwort gesendet,
+        // um keine Informationen preiszugeben. Bei POST-Anfragen wird der Zugriff verweigert.
+        if (req.method !== 'OPTIONS') {
+            return res.status(403).json({ error: 'Access from this origin is not permitted.' });
+        }
+    }
+
+    // Setzt die notwendigen CORS-Header, um die erlaubten Methoden und Header zu deklarieren.
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Chatbot-Secret');
+    res.setHeader('Access-control-allow-headers', 'Content-Type, X-Chatbot-Secret');
 
     // Behandelt Preflight-Anfragen (OPTIONS), die der Browser vor der eigentlichen POST-Anfrage sendet.
     if (req.method === 'OPTIONS') {
         return res.status(200).send();
     }
 
+    // --- 2. Sicherheitsprüfung: HTTP-Methode und geheimer Header ---
     // Stellt sicher, dass nur POST-Anfragen verarbeitet werden.
     if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Nur POST-Anfragen erlaubt.' });
+        return res.status(405).json({ error: 'Only POST requests are allowed.' });
     }
 
-    // Extrahiert den Konversationsverlauf aus dem Request-Body.
-    const { history } = req.body; 
+    // Wenn ein geheimer Header in der Umgebung konfiguriert ist, wird er hier validiert.
+    if (SECRET_HEADER_VALUE) {
+        const providedSecret = req.headers['x-chatbot-secret'];
+        if (providedSecret !== SECRET_HEADER_VALUE) {
+             return res.status(403).json({ error: 'Invalid security token.' });
+        }
+    }
 
-    // Validiert, ob der Verlauf vorhanden und nicht leer ist.
+    // --- 3. Verarbeitung der Anfrage ---
+    const { history } = req.body;
+
+    // Validiert, dass ein Konversationsverlauf in der Anfrage vorhanden ist.
     if (!history || history.length === 0) {
-        return res.status(400).json({ error: 'Konversationsverlauf fehlt.' });
+        return res.status(400).json({ error: 'Conversation history is missing.' });
     }
-    
+
     try {
-        // Sendet die Anfrage an die Gemini API mit dem System-Prompt und dem bisherigen Gesprächsverlauf.
+        // Sendet die Anfrage an die Google Gemini API.
+        // Der `history` (Konversationsverlauf) und der `SYSTEM_PROMPT` werden übergeben.
         const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+            model: "gemini-2.5-flash", // Das verwendete Gemini-Modell.
             contents: history,
             config: {
                 systemInstruction: SYSTEM_PROMPT,
             }
         });
-        
-        // Sendet die generierte Antwort der KI als JSON zurück an das Frontend.
+
+        // Sendet die Antwort der KI als JSON zurück an das Frontend.
         return res.status(200).json({ answer: response.text });
 
     } catch (error) {
-        // Fängt Fehler bei der Kommunikation mit der Gemini API ab und gibt eine Fehlermeldung zurück.
-        console.error('Gemini API Fehler:', error);
-        return res.status(500).json({ answer: "Entschuldigung, es gab ein technisches Problem. Bitte versuchen Sie es später erneut.", error: error.message });
+        // Fängt Fehler ab, die bei der Kommunikation mit der Gemini API auftreten.
+        console.error('Gemini API Error:', error);
+        return res.status(500).json({ answer: "Sorry, there was a technical issue. Please try again later.", error: error.message });
     }
 }

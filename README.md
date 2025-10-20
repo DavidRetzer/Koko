@@ -1,74 +1,127 @@
 # Shinkoko Gemini Chatbot Proxy
 
-Dieses Projekt implementiert einen Proxy-Server für einen Google Gemini Chatbot, der auf der Website von [shinkoko.at](https://shinkoko.at/) eingesetzt wird. Der Chatbot "Koko" ist ein virtueller Tee-Berater, der Kunden bei der Auswahl von Produkten unterstützt.
+Dieses Projekt implementiert einen KI-gestützten Chatbot namens "Koko" für den Online-Shop [shinkoko.at](https://shinkoko.at/). Koko agiert als virtueller Tee-Berater, der Kunden bei der Produktauswahl unterstützt und Fragen rund um japanischen Tee beantwortet.
 
-## Projektübersicht
+Das System ist als sicherer Proxy konzipiert, der Anfragen von einem Frontend-Widget (z.B. auf einer Shopify-Seite) über eine Vercel Serverless Function an die Google Gemini API weiterleitet.
 
-Das Projekt besteht aus zwei Hauptteilen:
+## Architektur und Komponenten
 
-1.  **Vercel Serverless Function (`/api/chat.js`)**: Dies ist der Kern des Backends. Die Funktion empfängt den Chat-Verlauf vom Frontend, fügt einen detaillierten System-Prompt hinzu, der die Persönlichkeit und die Verhaltensregeln des Bots definiert, und leitet die Anfrage sicher an die Google Gemini API weiter. Sie ist für den produktiven Einsatz auf Vercel ausgelegt.
+Das Projekt ist in drei Hauptkomponenten unterteilt:
 
-2.  **Lokaler Express-Server (`server.js`) und Test-Seite (`test.html`)**: Für die Entwicklung und das Testen gibt es einen einfachen Express-Server, der die Vercel-Funktion lokal ausführt. Die `test.html` bietet eine simple Chat-Oberfläche, um die Funktionalität des Bots zu überprüfen, ohne ihn auf der Live-Website implementieren zu müssen.
+1.  **`api/chat.js` (Vercel Serverless Function)**
+    -   **Zweck**: Dies ist das Herzstück des Backends und für den produktiven Einsatz konzipiert.
+    -   **Funktionalität**:
+        -   Empfängt Chat-Anfragen von autorisierten Frontends.
+        -   Implementiert Sicherheitsprüfungen (CORS-Policy, geheimer Header).
+        -   Fügt den `SYSTEM_PROMPT` hinzu, der die Persönlichkeit, das Wissen und die Verhaltensregeln des Chatbots "Koko" definiert.
+        -   Leitet die Anfrage sicher an die Google Gemini API weiter und sendet die Antwort zurück.
+    -   **Hosting**: Vercel
+
+2.  **`theme.liquid` (Shopify Chat-Widget)**
+    -   **Zweck**: Dies ist das Frontend-Widget, das direkt in das Shopify-Theme von shinkoko.at integriert wird.
+    -   **Funktionalität**:
+        -   Stellt eine komplette Chat-Benutzeroberfläche bereit (HTML, CSS, JavaScript).
+        -   Verwaltet den Chat-Verlauf auf der Client-Seite.
+        -   Sendet Benutzeranfragen an die Vercel-Proxy-Funktion (`api/chat.js`).
+        -   Zeigt die Antworten des Bots in Echtzeit an.
+
+3.  **Lokale Testumgebung (`server.js` & `test.html`)**
+    -   **Zweck**: Ermöglicht die vollständige lokale Entwicklung und das Testen des Chatbots ohne Deployment.
+    -   **Komponenten**:
+        -   `server.js`: Ein lokaler Express.js-Server, der die Vercel-Funktion simuliert und als Proxy zur Gemini API dient.
+        -   `test.html`: Eine einfache HTML-Seite mit einer Chat-Oberfläche, die mit dem lokalen Server (`server.js`) kommuniziert.
 
 ## Dateistruktur
 
 ```
 .
-├───.gitignore
-├───package.json         # Definiert die Projekt-Abhängigkeiten (Express, @google/genai)
-├───README.md            # Diese Datei
+├───.gitignore           # Ignoriert node_modules und .env-Dateien
+├───package.json         # Definiert Projekt-Abhängigkeiten (Express, @google/genai)
+├───README.md            # Diese Dokumentation
 ├───server.js            # Lokaler Express-Server für Testzwecke
 ├───test.html            # HTML-Seite für lokale Tests des Chatbots
-├───.git/                  # Git-Verzeichnis
+├───theme.liquid         # Code für das Shopify Frontend-Widget
 └───api/
-│   └───chat.js          # Die Vercel Serverless Function (Kernlogik des Chatbots)
+    └───chat.js          # Vercel Serverless Function (Produktions-Backend)
 ```
 
-## Lokales Testen
+## Setup für die lokale Entwicklung
 
-Um den Chatbot lokal zu testen, führen Sie die folgenden Schritte aus:
+Führen Sie die folgenden Schritte aus, um den Chatbot auf Ihrem lokalen Rechner zu testen.
 
-1.  **Abhängigkeiten installieren**:
+### 1. Voraussetzungen
 
-    Stellen Sie sicher, dass Node.js installiert ist. Installieren Sie dann die notwendigen Pakete, einschließlich `http-server` für das lokale Hosting der Test-Datei.
+-   [Node.js](https://nodejs.org/) (LTS-Version empfohlen)
+-   Ein Google Gemini API-Schlüssel
 
-    ```bash
-    npm install
-    npm install -g http-server
-    ```
+### 2. Installation
 
-2.  **API-Schlüssel einrichten**:
+Klonen Sie das Repository und installieren Sie die notwendigen npm-Pakete:
 
-    Erstellen Sie eine `.env`-Datei im Hauptverzeichnis des Projekts und fügen Sie Ihren Google Gemini API-Schlüssel hinzu:
+```bash
+git clone <repository-url>
+cd <projekt-ordner>
+npm install
+```
 
-    ```
-    GEMINI_API_KEY="IHR_API_SCHLÜSSEL"
-    ```
+### 3. Umgebungsvariablen einrichten
 
-3.  **Lokalen Proxy-Server starten**:
+Erstellen Sie eine Datei namens `.env` im Hauptverzeichnis des Projekts. Diese Datei wird von `server.js` für die lokale Entwicklung verwendet.
 
-    Starten Sie in einem Terminal den Proxy-Server. Er wird Anfragen an die Gemini-API weiterleiten.
+```
+# .env
 
-    ```bash
-    node server.js
-    ```
+# Ihr Google Gemini API-Schlüssel
+GEMINI_API_KEY="IHR_GEMINI_API_SCHLÜSSEL"
 
-    Der Server läuft nun auf `http://localhost:3000`.
+# Ein sicherer, zufälliger String, um den lokalen Proxy zu schützen
+CHATBOT_SECRET="q69LXYabMcOezRxBGJs0Qj00zVlP0PCzwMM337r+tAuHbvDAVnluaq1dQdE5VvAXNA98fmNymh8G+VCRGvzVJmoTTmhVUtPQt6P10lJFpNMGVLoM1fggYcKaqO/"
+```
 
-4.  **Test-Seite bereitstellen**:
+**Hinweis**: Der `CHATBOT_SECRET` in der `.env`-Datei muss mit dem in `test.html` übereinstimmen.
 
-    Öffnen Sie ein **zweites Terminal** und starten Sie den `http-server`, um die `test.html`-Datei bereitzustellen.
+### 4. Lokale Server starten
 
-    ```bash
-    http-server -p 8080
-    ```
+Sie benötigen zwei separate Terminals, um die lokale Testumgebung auszuführen.
 
-5.  **Test-Seite im Browser öffnen**:
+**Terminal 1: Starten des Proxy-Servers**
 
-    Öffnen Sie Ihren Browser und rufen Sie die folgende Adresse auf:
+Dieser Server (`server.js`) läuft auf Port 3000 und leitet Anfragen an die Gemini API weiter.
 
-    [http://127.0.0.1:8080/test.html](http://127.0.0.1:8080/test.html)
+```bash
+node server.js
+```
 
-    Sie können nun Nachrichten an den Chatbot senden und seine Antworten testen.
+**Terminal 2: Bereitstellen der Test-Seite**
 
-**Hinweis**: Die `test.html` ist nur für lokale Tests vorgesehen und nicht Teil der produktiven Anwendung.
+Verwenden Sie einen einfachen HTTP-Server, um `test.html` bereitzustellen. Wenn Sie `http-server` nicht global installiert haben, können Sie `npx` verwenden.
+
+```bash
+npx http-server -p 8080
+```
+
+### 5. Im Browser testen
+
+Öffnen Sie Ihren Browser und navigieren Sie zu:
+
+[http://127.0.0.1:8080/test.html](http://127.0.0.1:8080/test.html)
+
+Sie sollten nun die lokale Test-Chat-Oberfläche sehen und können mit dem Bot interagieren.
+
+## Deployment auf Vercel
+
+Für den produktiven Einsatz wird die `api/chat.js`-Funktion auf Vercel gehostet.
+
+1.  **Vercel-Projekt einrichten**: Verbinden Sie Ihr Git-Repository mit einem neuen Vercel-Projekt. Vercel erkennt das Projekt als Node.js-Anwendung und konfiguriert die Serverless Function automatisch.
+
+2.  **Umgebungsvariablen in Vercel setzen**: Gehen Sie in Ihrem Vercel-Projekt zu `Settings > Environment Variables` und fügen Sie dieselben Schlüssel wie in Ihrer `.env`-Datei hinzu:
+    -   `GEMINI_API_KEY`: Ihr Google Gemini API-Schlüssel.
+    -   `CHATBOT_SECRET`: Ein sicherer, zufälliger String für die Authentifizierung. **WICHTIG**: Dieser Wert muss mit dem `CHATBOT_SECRET` im `theme.liquid`-Skript übereinstimmen.
+
+3.  **Proxy-URL aktualisieren**: Nach dem Deployment stellt Vercel eine URL für Ihre Funktion bereit (z.B. `https://ihr-projekt.vercel.app/api/chat`). Aktualisieren Sie die `PROXY_SERVER_URL`-Konstante im `theme.liquid`-Skript mit dieser URL.
+
+## Integration in Shopify
+
+1.  **Code kopieren**: Kopieren Sie den gesamten Inhalt von `theme.liquid` (HTML, CSS und JavaScript).
+2.  **In Shopify einfügen**: Gehen Sie in Ihrem Shopify-Adminbereich zu `Online Store > Themes`. Klicken Sie bei Ihrem aktuellen Theme auf `Actions > Edit code`. Öffnen Sie die Layout-Datei `theme.liquid` und fügen Sie den kopierten Code direkt vor dem schließenden `</body>`-Tag ein.
+3.  **Speichern**: Speichern Sie die Änderungen. Das Chat-Widget sollte nun auf allen Seiten Ihres Shops erscheinen.
