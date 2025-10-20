@@ -2,86 +2,85 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>Local Gemini Chatbot Test</title>
+    <title>Lokaler Gemini Chatbot Test</title>
     <style>
-      /* Minimal CSS for clarity */
+      /* Minimale CSS-Stile für eine übersichtliche Darstellung des Chats. */
       #chat-messages { height: 300px; border: 1px solid #ccc; overflow-y: scroll; padding: 10px; margin-bottom: 10px; }
-      .bot-message { color: blue; }
-      .user-message { color: green; text-align: right; }
+      .bot-message { color: blue; } /* Nachrichten vom Bot sind blau. */
+      .user-message { color: green; text-align: right; } /* Nachrichten vom Benutzer sind grün und rechtsbündig. */
     </style>
 </head>
 <body>
-    <h1>Shinkoko Local Chatbot Test</h1>
+    <h1>Shinkoko Lokaler Chatbot Test</h1>
     <div id="chat-messages"></div>
     <input type="text" id="chat-input" placeholder="Frage hier eingeben..." style="width: 80%;">
     <button id="chat-send">Senden</button>
 
     <script>
-        // Set the local URL and the local secret if you implemented it
+        // URL des lokalen Proxy-Servers, der die Anfragen an die Gemini API weiterleitet.
         const PROXY_SERVER_URL = "http://localhost:3000/api/chat";
+        // Ein optionales Secret, das zur Authentifizierung an den Proxy gesendet wird (zur Sicherheit).
         const CHATBOT_SECRET = "Ihr_sehr_langer_zufälliger_Geheimcode_den_Sie_in_Vercel_gespeichert_haben"; 
 
         const chatMessages = document.getElementById('chat-messages');
         const chatInput = document.getElementById('chat-input');
         const chatSend = document.getElementById('chat-send');
 
-        const chatHistory = []; // Initialisieren Sie den Verlauf
+        // Speichert den gesamten Gesprächsverlauf, um ihn bei jeder Anfrage an die API zu senden.
+        const chatHistory = [];
 
-        // Nachricht hinzufügen (erweitert)
-        function addMessage(text, sender) { // 'sender' ist jetzt eigentlich 'classes'
-            // 1. Visuelle Anzeige (angepasst)
+        // Fügt eine Nachricht zum Chatfenster hinzu und speichert sie im Verlauf.
+        function addMessage(text, senderClass) {
+            // 1. Visuelle Anzeige der Nachricht im Chatfenster.
             const msgDiv = document.createElement('div');
             msgDiv.textContent = text;
-            // msgDiv.className = 'message ' + (sender === 'user' ? 'user-message' : 'bot-message'); // 👈 ALTE ZEILE
-            msgDiv.className = sender; // 👈 NEU: Verwende direkt den übergebenen String
-            
-            // Wir behalten die logische Prüfung bei, um zu wissen, wer spricht
-            const role = sender.includes('user') ? 'user' : 'bot'; 
+            msgDiv.className = senderClass; // Wendet die entsprechenden CSS-Klassen an.
             
             chatMessages.appendChild(msgDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+            chatMessages.scrollTop = chatMessages.scrollHeight; // Scrollt automatisch nach unten.
 
-            // 2. Speicherung im Chat-Verlauf (für Gemini API)
+            // 2. Logische Bestimmung der Rolle (Benutzer oder Bot) für die API.
+            const role = senderClass.includes('user') ? 'user' : 'bot'; 
+            
+            // 3. Speicherung der Nachricht im Chat-Verlauf für die API.
+            // Lade-Nachrichten werden ignoriert.
             if (role === 'user') {
                 chatHistory.push({ role: "user", parts: [{ text: text }] });
-            } else if (role === 'bot' && !sender.includes('loading')) { // Stelle sicher, dass die Lade-Nachricht NICHT gespeichert wird
+            } else if (role === 'bot' && !senderClass.includes('loading')) {
                 chatHistory.push({ role: "model", parts: [{ text: text }] });
             }
         }
 
+        // Sendet die Nachricht des Benutzers an den Proxy-Server.
         async function sendMessage() {
             const message = chatInput.value.trim();
-            if (message === '') return;
+            if (message === '') return; // Leere Nachrichten ignorieren.
 
-            // Fügen Sie die Benutzer-Nachricht HINZU, bevor Sie senden
-            addMessage(message, 'message user-message'); // 👈 Angepasster Aufruf für User
+            // Benutzernachricht zum Chat hinzufügen und Eingabefeld leeren.
+            addMessage(message, 'message user-message');
             chatInput.value = '';            
 
-            // 1. Lade-Nachricht anzeigen
-            addMessage("Shinkoko-Bot tippt...", 'message bot-message loading'); // 👈 Angepasster Aufruf für Loading
+            // Eine "tippt..."-Nachricht anzeigen, um dem Benutzer Feedback zu geben.
+            addMessage("Shinkoko-Bot tippt...", 'message bot-message loading');
 
             try {
-                // 2. Sende den GESAMTEN Verlauf an den Proxy
+                // Den gesamten Chat-Verlauf an den Proxy-Server senden.
                 const response = await fetch(PROXY_SERVER_URL, {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
-                        // Füge den geheimen Header hinzu, falls verwendet:
-                        'X-Chatbot-Secret': CHATBOT_SECRET 
+                        'X-Chatbot-Secret': CHATBOT_SECRET // Sicherheits-Header.
                     },
                     body: JSON.stringify({ 
-                        // NEU: Senden Sie das komplette History-Array
-                        history: chatHistory 
+                        history: chatHistory // Das komplette Verlaufs-Array wird gesendet.
                     })
                 });
 
                 const data = await response.json();
                 
-                // 3. Bot-Antwort anzeigen
-                // (Die Bot-Antwort wird automatisch in addMessage als "model"-Nachricht gespeichert)
-                // Lade-Nachricht entfernen und Bot-Antwort anzeigen
+                // Die "tippt..."-Nachricht entfernen und die Antwort des Bots anzeigen.
                 document.querySelector('.loading').remove();
-                addMessage(data.answer, 'message bot-message'); // 👈 Angepasster Aufruf für Bot
+                addMessage(data.answer, 'message bot-message');
 
             } catch (error) {
                 console.error("Fehler beim Senden der Nachricht:", error);
@@ -89,6 +88,7 @@
             }
         }
 
+        // Event-Listener für den Senden-Button und die Enter-Taste.
         chatSend.addEventListener('click', sendMessage);
         chatInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
@@ -96,6 +96,7 @@
             }
         });
 
+        // Startnachricht beim Laden der Seite.
         addMessage("Hallo! Starten Sie Ihren lokalen Test.", 'bot');
     </script>
 </body>

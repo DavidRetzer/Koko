@@ -1,11 +1,15 @@
-// api/chat.js
+// /api/chat.js
+// Diese Datei ist eine Vercel Serverless Function, die als Proxy für die Google Gemini API dient.
 
 import { GoogleGenAI } from '@google/genai';
 
-// Der API-Schlüssel wird als Umgebungsvariable (GEMINI_API_KEY) geladen
+// Initialisiert den Google Gemini Client.
+// Der API-Schlüssel wird sicher aus den Umgebungsvariablen geladen.
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY; 
 const ai = new GoogleGenAI(GEMINI_API_KEY);
 
+// System Prompt: Definiert die Persönlichkeit, Regeln und das Verhalten des Chatbots "Koko".
+// Dieser Prompt stellt sicher, dass der Bot kontextbezogen, höflich und markenkonform antwortet.
 const SYSTEM_PROMPT = `
 1. Persona und Rolle: Du bist "Koko", der virtuelle Tee-Berater für den Online-Shop shinkoko.at. Deine Rolle ist die eines authentischen Experten für japanische Teespezialitäten und -kultur.
 
@@ -49,30 +53,35 @@ Nutzer: "Do you also sell English Breakfast tea?"
 Koko (Antwort): "We do not carry black teas like English Breakfast, as we specialize entirely in authentic Japanese (and soon Chinese) green tea specialties. However, if you are looking for a classic, comforting tea, may I introduce you to our Genmaicha? It's a wonderful green tea with roasted brown rice."
 `;
 
-// Haupteinstiegspunkt der Vercel Function
+// Haupteinstiegspunkt der Vercel Serverless Function.
 export default async function (req, res) {
-    // 1. CORS-Header
+    // Setzt die CORS-Header, um Anfragen vom Frontend (lokal oder produktiv) zu erlauben.
+    // Die auskommentierte Zeile ist für die Live-Domain, die aktive für lokale Tests.
     // res.setHeader('Access-Control-Allow-Origin', 'https://shinkoko.at'); 
     res.setHeader('Access-Control-Allow-Origin', 'http://127.0.0.1:8080'); 
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Chatbot-Secret');
 
-    // Behandle Preflight-Anfragen (OPTIONS)
+    // Behandelt Preflight-Anfragen (OPTIONS), die der Browser vor der eigentlichen POST-Anfrage sendet.
     if (req.method === 'OPTIONS') {
         return res.status(200).send();
     }
 
+    // Stellt sicher, dass nur POST-Anfragen verarbeitet werden.
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Nur POST-Anfragen erlaubt.' });
     }
 
-    const { history } = req.body; // Jetzt wird das gesamte Array gelesen
+    // Extrahiert den Konversationsverlauf aus dem Request-Body.
+    const { history } = req.body; 
 
+    // Validiert, ob der Verlauf vorhanden und nicht leer ist.
     if (!history || history.length === 0) {
         return res.status(400).json({ error: 'Konversationsverlauf fehlt.' });
     }
     
     try {
+        // Sendet die Anfrage an die Gemini API mit dem System-Prompt und dem bisherigen Gesprächsverlauf.
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
             contents: history,
@@ -81,10 +90,11 @@ export default async function (req, res) {
             }
         });
         
-        // Sende die KI-Antwort zurück
+        // Sendet die generierte Antwort der KI als JSON zurück an das Frontend.
         return res.status(200).json({ answer: response.text });
 
     } catch (error) {
+        // Fängt Fehler bei der Kommunikation mit der Gemini API ab und gibt eine Fehlermeldung zurück.
         console.error('Gemini API Fehler:', error);
         return res.status(500).json({ answer: "Entschuldigung, es gab ein technisches Problem. Bitte versuchen Sie es später erneut.", error: error.message });
     }
