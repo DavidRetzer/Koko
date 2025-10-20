@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Local Gemini Chatbot Test</title>
+    <style>
+      /* Minimal CSS for clarity */
+      #chat-messages { height: 300px; border: 1px solid #ccc; overflow-y: scroll; padding: 10px; margin-bottom: 10px; }
+      .bot-message { color: blue; }
+      .user-message { color: green; text-align: right; }
+    </style>
+</head>
+<body>
+    <h1>Shinkoko Local Chatbot Test</h1>
+    <div id="chat-messages"></div>
+    <input type="text" id="chat-input" placeholder="Frage hier eingeben..." style="width: 80%;">
+    <button id="chat-send">Senden</button>
+
+    <script>
+        // Set the local URL and the local secret if you implemented it
+        const PROXY_SERVER_URL = "http://localhost:3000/api/chat";
+        const CHATBOT_SECRET = "Ihr_sehr_langer_zufälliger_Geheimcode_den_Sie_in_Vercel_gespeichert_haben"; 
+
+        const chatMessages = document.getElementById('chat-messages');
+        const chatInput = document.getElementById('chat-input');
+        const chatSend = document.getElementById('chat-send');
+
+        const chatHistory = []; // Initialisieren Sie den Verlauf
+
+        // Nachricht hinzufügen (erweitert)
+        function addMessage(text, sender) { // 'sender' ist jetzt eigentlich 'classes'
+            // 1. Visuelle Anzeige (angepasst)
+            const msgDiv = document.createElement('div');
+            msgDiv.textContent = text;
+            // msgDiv.className = 'message ' + (sender === 'user' ? 'user-message' : 'bot-message'); // 👈 ALTE ZEILE
+            msgDiv.className = sender; // 👈 NEU: Verwende direkt den übergebenen String
+            
+            // Wir behalten die logische Prüfung bei, um zu wissen, wer spricht
+            const role = sender.includes('user') ? 'user' : 'bot'; 
+            
+            chatMessages.appendChild(msgDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            // 2. Speicherung im Chat-Verlauf (für Gemini API)
+            if (role === 'user') {
+                chatHistory.push({ role: "user", parts: [{ text: text }] });
+            } else if (role === 'bot' && !sender.includes('loading')) { // Stelle sicher, dass die Lade-Nachricht NICHT gespeichert wird
+                chatHistory.push({ role: "model", parts: [{ text: text }] });
+            }
+        }
+
+        async function sendMessage() {
+            const message = chatInput.value.trim();
+            if (message === '') return;
+
+            // Fügen Sie die Benutzer-Nachricht HINZU, bevor Sie senden
+            addMessage(message, 'message user-message'); // 👈 Angepasster Aufruf für User
+            chatInput.value = '';            
+
+            // 1. Lade-Nachricht anzeigen
+            addMessage("Shinkoko-Bot tippt...", 'message bot-message loading'); // 👈 Angepasster Aufruf für Loading
+
+            try {
+                // 2. Sende den GESAMTEN Verlauf an den Proxy
+                const response = await fetch(PROXY_SERVER_URL, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        // Füge den geheimen Header hinzu, falls verwendet:
+                        'X-Chatbot-Secret': CHATBOT_SECRET 
+                    },
+                    body: JSON.stringify({ 
+                        // NEU: Senden Sie das komplette History-Array
+                        history: chatHistory 
+                    })
+                });
+
+                const data = await response.json();
+                
+                // 3. Bot-Antwort anzeigen
+                // (Die Bot-Antwort wird automatisch in addMessage als "model"-Nachricht gespeichert)
+                // Lade-Nachricht entfernen und Bot-Antwort anzeigen
+                document.querySelector('.loading').remove();
+                addMessage(data.answer, 'message bot-message'); // 👈 Angepasster Aufruf für Bot
+
+            } catch (error) {
+                console.error("Fehler beim Senden der Nachricht:", error);
+                addMessage("Entschuldigung, der Chatbot ist momentan nicht erreichbar.", 'bot');
+            }
+        }
+
+        chatSend.addEventListener('click', sendMessage);
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        addMessage("Hallo! Starten Sie Ihren lokalen Test.", 'bot');
+    </script>
+</body>
+</html>

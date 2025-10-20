@@ -53,9 +53,9 @@ Koko (Antwort): "We do not carry black teas like English Breakfast, as we specia
 export default async function (req, res) {
     // 1. CORS-Header
     // res.setHeader('Access-Control-Allow-Origin', 'https://shinkoko.at'); 
-    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3000'); // Für lokale Tests
+    res.setHeader('Access-Control-Allow-Origin', 'http://127.0.0.1:8080'); 
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Chatbot-Secret');
 
     // Behandle Preflight-Anfragen (OPTIONS)
     if (req.method === 'OPTIONS') {
@@ -66,18 +66,16 @@ export default async function (req, res) {
         return res.status(405).json({ error: 'Nur POST-Anfragen erlaubt.' });
     }
 
-    const { message } = req.body;
+    const { history } = req.body; // Jetzt wird das gesamte Array gelesen
 
-    if (!message) {
-        return res.status(400).json({ error: 'Nachricht fehlt im Request-Body.' });
+    if (!history || history.length === 0) {
+        return res.status(400).json({ error: 'Konversationsverlauf fehlt.' });
     }
-
+    
     try {
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash",
-            contents: [
-                { role: "user", parts: [{ text: message }] }
-            ],
+            contents: history,
             config: {
                 systemInstruction: SYSTEM_PROMPT,
             }
