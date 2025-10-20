@@ -1,0 +1,9 @@
+{
+  "name": "shinkoko-gemini-proxy",
+  "version": "1.0.0",
+  "description": "Proxy for Gemini Chatbot on Shopify (Vercel)",
+  "type": "module",
+  "dependencies": {
+    "@google/genai": "^0.1.0"
+  }
+}
