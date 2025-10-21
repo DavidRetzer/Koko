@@ -1,0 +1,412 @@
+{% comment %}
+----------------------------------------------------------------------------------------------------
+KOKO - SHINKOKO GEMINI CHATBOT WIDGET
+Version: 1.0.0
+----------------------------------------------------------------------------------------------------
+Anleitung zur Integration in Shopify:
+1. Kopieren Sie den gesamten Inhalt dieser Datei.
+2. Gehen Sie in Ihrem Shopify-Adminbereich zu "Onlineshop" > "Themes".
+3. Klicken Sie bei Ihrem aktuellen Theme auf "Aktionen" > "Code bearbeiten".
+4. Öffnen Sie die Layout-Datei `theme.liquid`.
+5. Fügen Sie den kopierten Code direkt vor dem schließenden `</body>`-Tag ein.
+6. Passen Sie die beiden Konfigurationsvariablen `PROXY_SERVER_URL` und `CHATBOT_SECRET` im
+   JavaScript-Teil unten an Ihre Vercel-Deployment-Daten an.
+7. Speichern Sie die Änderungen.
+----------------------------------------------------------------------------------------------------
+{% endcomment %}
+
+<style>
+  /* Stellt sicher, dass das Widget die Seitenhöhe nicht beeinflusst */
+  :root {
+    --koko-chat-primary-color: #2c3e50;
+    --koko-chat-button-size: 55px;
+    --koko-chat-bottom-spacing: 20px;
+    --koko-chat-side-spacing: 20px;
+  }
+
+  .koko-chat-widget-container {
+    position: fixed;
+    bottom: var(--koko-chat-bottom-spacing);
+    right: var(--koko-chat-side-spacing);
+    z-index: 9999;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  .koko-chat-button {
+    width: var(--koko-chat-button-size);
+    height: var(--koko-chat-button-size);
+    background-color: var(--koko-chat-primary-color);
+    color: white;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .koko-chat-button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  }
+
+  .koko-chat-button svg {
+    width: 60%;
+    height: 60%;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+
+  .koko-chat-button .koko-icon-close {
+    opacity: 0;
+    transform: scale(0);
+    position: absolute;
+  }
+
+  .koko-chat-widget-container.koko-chat-open .koko-chat-button .koko-icon-chat {
+    opacity: 0;
+    transform: scale(0);
+  }
+  
+  .koko-chat-widget-container.koko-chat-open .koko-chat-button .koko-icon-close {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .koko-chat-window {
+    position: absolute;
+    bottom: calc(var(--koko-chat-button-size) + 15px);
+    right: 0;
+    width: 350px;
+    max-width: calc(100vw - (var(--koko-chat-side-spacing) * 2));
+    height: 500px;
+    max-height: calc(100vh - var(--koko-chat-bottom-spacing) - var(--koko-chat-button-size) - 35px);
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    visibility: hidden;
+  }
+
+  .koko-chat-widget-container.koko-chat-open .koko-chat-window {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    visibility: visible;
+  }
+
+  .koko-chat-header {
+    background-color: var(--koko-chat-primary-color);
+    color: white;
+    padding: 15px 20px;
+    border-bottom: 1px solid #e0e0e0;
+    flex-shrink: 0;
+  }
+
+  .koko-chat-header h3 {
+    margin: 0;
+    font-size: 1.1em;
+    font-weight: 600;
+  }
+  
+  .koko-chat-header p {
+    margin: 4px 0 0;
+    font-size: 0.8em;
+    opacity: 0.9;
+  }
+
+  .koko-chat-messages {
+    flex-grow: 1;
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .koko-chat-message {
+    max-width: 85%;
+    padding: 10px 15px;
+    border-radius: 18px;
+    line-height: 1.5;
+    word-wrap: break-word;
+  }
+
+  .koko-chat-message.koko-user {
+    background-color: #f0f0f0;
+    color: #333;
+    align-self: flex-end;
+    border-bottom-right-radius: 4px;
+  }
+
+  .koko-chat-message.koko-bot {
+    background-color: var(--koko-chat-primary-color);
+    color: white;
+    align-self: flex-start;
+    border-bottom-left-radius: 4px;
+  }
+  
+  .koko-chat-message.koko-bot.koko-thinking {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .koko-dot-flashing {
+    position: relative;
+    width: 6px;
+    height: 6px;
+    border-radius: 5px;
+    background-color: rgba(255,255,255,0.8);
+    color: rgba(255,255,255,0.8);
+    animation: dotFlashing 1s infinite linear alternate;
+    animation-delay: .5s;
+  }
+
+  .koko-dot-flashing::before, .koko-dot-flashing::after {
+    content: '';
+    display: inline-block;
+    position: absolute;
+    top: 0;
+  }
+
+  .koko-dot-flashing::before {
+    left: -10px;
+    width: 6px;
+    height: 6px;
+    border-radius: 5px;
+    background-color: rgba(255,255,255,0.8);
+    color: rgba(255,255,255,0.8);
+    animation: dotFlashing 1s infinite alternate;
+    animation-delay: 0s;
+  }
+
+  .koko-dot-flashing::after {
+    left: 10px;
+    width: 6px;
+    height: 6px;
+    border-radius: 5px;
+    background-color: rgba(255,255,255,0.8);
+    color: rgba(255,255,255,0.8);
+    animation: dotFlashing 1s infinite alternate;
+    animation-delay: 1s;
+  }
+
+  @keyframes dotFlashing {
+    0% { background-color: rgba(255,255,255,0.8); }
+    50%, 100% { background-color: rgba(255,255,255,0.3); }
+  }
+
+  .koko-chat-form {
+    display: flex;
+    padding: 15px;
+    border-top: 1px solid #e0e0e0;
+    flex-shrink: 0;
+  }
+
+  .koko-chat-form input {
+    flex-grow: 1;
+    border: 1px solid #ccc;
+    border-radius: 20px;
+    padding: 10px 15px;
+    font-size: 1em;
+    margin-right: 10px;
+    transition: border-color 0.2s ease;
+  }
+  
+  .koko-chat-form input:focus {
+    outline: none;
+    border-color: var(--koko-chat-primary-color);
+  }
+
+  .koko-chat-form button {
+    background: var(--koko-chat-primary-color);
+    border: none;
+    color: white;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .koko-chat-form button svg {
+    width: 20px;
+    height: 20px;
+  }
+  
+  @media (max-width: 480px) {
+    :root {
+      --koko-chat-bottom-spacing: 15px;
+      --koko-chat-side-spacing: 15px;
+    }
+    .koko-chat-window {
+      width: calc(100vw - (var(--koko-chat-side-spacing) * 2));
+      height: calc(100vh - var(--koko-chat-bottom-spacing) - var(--koko-chat-button-size) - 30px);
+      max-height: none;
+      border-radius: 12px;
+    }
+  }
+</style>
+
+<div class="koko-chat-widget-container" id="koko-chat-widget">
+  <!-- Chat Window -->
+  <div class="koko-chat-window">
+    <div class="koko-chat-header">
+      <h3>Koko, Ihr Tee-Berater</h3>
+      <p>Ich helfe Ihnen gerne bei Fragen zu unserem Sortiment.</p>
+    </div>
+    <div class="koko-chat-messages">
+      <!-- Chat messages will be appended here -->
+      <div class="koko-chat-message koko-bot">
+        Hallo! Ich bin Koko, Ihr persönlicher Tee-Berater. Wie kann ich Ihnen heute helfen?
+      </div>
+    </div>
+    <form class="koko-chat-form">
+      <input type="text" placeholder="Frage stellen..." aria-label="Ihre Nachricht" required>
+      <button type="submit" aria-label="Senden">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      </button>
+    </form>
+  </div>
+
+  <!-- Chat Toggle Button -->
+  <button class="koko-chat-button" aria-label="Chat öffnen">
+    <svg class="koko-icon-chat" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>
+    <svg class="koko-icon-close" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+  </button>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // ###################################################################################
+    // # KONFIGURATION: Bitte passen Sie diese beiden Werte an Ihr Setup an.
+    // ###################################################################################
+
+    /**
+     * Die vollständige URL zu Ihrer Vercel Serverless Function.
+     * Beispiel: 'https://ihr-projekt-name.vercel.app/api/chat'
+     */
+    const PROXY_SERVER_URL = 'https://ihr-projekt.vercel.app/api/chat';
+
+    /**
+     * Der geheime Schlüssel zur Authentifizierung beim Proxy-Server.
+     * Dieser Wert MUSS mit der `CHATBOT_SECRET` Umgebungsvariable in Vercel übereinstimmen.
+     */
+    const CHATBOT_SECRET = 'Ihr-geheimer-schluessel-hier-einfuegen';
+
+    // ###################################################################################
+    // # Widget-Logik (ab hier nichts ändern)
+    // ###################################################################################
+
+    const chatWidget = document.getElementById('koko-chat-widget');
+    const toggleButton = chatWidget.querySelector('.koko-chat-button');
+    const messagesContainer = chatWidget.querySelector('.koko-chat-messages');
+    const chatForm = chatWidget.querySelector('.koko-chat-form');
+    const inputField = chatForm.querySelector('input');
+
+    // Der Konversationsverlauf wird im Speicher gehalten
+    const conversationHistory = [
+      {
+        role: 'model',
+        parts: [{ text: 'Hallo! Ich bin Koko, Ihr persönlicher Tee-Berater. Wie kann ich Ihnen heute helfen?' }]
+      }
+    ];
+
+    // Funktion zum Öffnen/Schließen des Chat-Fensters
+    toggleButton.addEventListener('click', () => {
+      chatWidget.classList.toggle('koko-chat-open');
+      if (chatWidget.classList.contains('koko-chat-open')) {
+        inputField.focus();
+      }
+    });
+
+    // Funktion zum Senden der Nachricht
+    chatForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const userInput = inputField.value.trim();
+      if (!userInput) return;
+
+      // Benutzernachricht zum Verlauf und zur UI hinzufügen
+      addMessage(userInput, 'user');
+      conversationHistory.push({ role: 'user', parts: [{ text: userInput }] });
+      
+      inputField.value = '';
+      showThinkingIndicator();
+      
+      // Anfrage an den Proxy-Server senden
+      fetchBotResponse();
+    });
+
+    function addMessage(text, role) {
+      const messageElement = document.createElement('div');
+      messageElement.classList.add('koko-chat-message', `koko-${role}`);
+      messageElement.textContent = text;
+      messagesContainer.appendChild(messageElement);
+      scrollToBottom();
+      return messageElement;
+    }
+    
+    function showThinkingIndicator() {
+      const indicator = document.createElement('div');
+      indicator.classList.add('koko-chat-message', 'koko-bot', 'koko-thinking');
+      indicator.innerHTML = '<div class="koko-dot-flashing"></div>';
+      indicator.id = 'koko-thinking-indicator';
+      messagesContainer.appendChild(indicator);
+      scrollToBottom();
+    }
+
+    function removeThinkingIndicator() {
+      const indicator = document.getElementById('koko-thinking-indicator');
+      if (indicator) {
+        indicator.remove();
+      }
+    }
+
+    function scrollToBottom() {
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    async function fetchBotResponse() {
+      try {
+        const response = await fetch(PROXY_SERVER_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Chatbot-Secret': CHATBOT_SECRET
+          },
+          body: JSON.stringify({ history: conversationHistory })
+        });
+
+        removeThinkingIndicator();
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || `HTTP-Fehler: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const botAnswer = data.answer;
+
+        // Bot-Antwort zum Verlauf und zur UI hinzufügen
+        addMessage(botAnswer, 'bot');
+        conversationHistory.push({ role: 'model', parts: [{ text: botAnswer }] });
+
+      } catch (error) {
+        console.error('Fehler bei der Kommunikation mit dem Chatbot-Server:', error);
+        removeThinkingIndicator();
+        const errorMessage = 'Entschuldigung, es ist ein technisches Problem aufgetreten. Bitte versuchen Sie es später erneut.';
+        addMessage(errorMessage, 'bot');
+        conversationHistory.push({ role: 'model', parts: [{ text: errorMessage }] });
+      }
+    }
+  });
+</script>

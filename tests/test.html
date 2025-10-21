@@ -30,14 +30,14 @@
          * Die URL des lokalen Proxy-Servers.
          * Alle Anfragen werden an diesen Endpunkt gesendet, der sie dann an die Gemini API weiterleitet.
          */
-        const PROXY_SERVER_URL = "http://localhost:3000/api/chat";
+        const PROXY_SERVER_URL = "https://kokoproxy.vercel.app/api/chat";
 
         /**
          * Ein optionaler geheimer Schlüssel zur Authentifizierung gegenüber dem Proxy-Server.
          * Dieser Wert muss mit dem `CHATBOT_SECRET` in der `.env`-Datei (für `server.js`) übereinstimmen.
          * Er wird im `X-Chatbot-Secret`-Header gesendet.
          */
-        const CHATBOT_SECRET = "q69LXYabMcOezRxBGJs0Qj00zVlP0PCzwMM337r+tAuHbvDAVnluaq1dQdE5VvAXNA98fmNymh8G+VCRGvzVJmoTTmhVUtPQt6P10lJFpNMGVLoM1fggYcKaqO/";
+        const CHATBOT_SECRET = "q69LXYabMcOezRxBGJs0Qj00zVlP0PCzwMM337r+tAuHbvDAVnluaq1dQdE5VvAXNA98fmNymh8G+VCRGvzVJmoTT";
 
         // --- DOM-Elemente ---
         const chatMessages = document.getElementById('chat-messages');

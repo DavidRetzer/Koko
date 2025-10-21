@@ -11,7 +11,7 @@
  */
 
 import express from 'express';
-import chatProxy from './api/chat.js'; // Importiert die Kern-Chat-Logik, die auch auf Vercel läuft.
+import chatProxy from '../api/chat.js'; // Importiert die Kern-Chat-Logik, die auch auf Vercel läuft.
 
 const app = express();
 const PORT = 3000;
