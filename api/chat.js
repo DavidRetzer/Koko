@@ -72,6 +72,7 @@ Koko (Antwort): "We do not carry black teas like English Breakfast, as we specia
  */
 const ALLOWED_ORIGINS = [
     'https://shinkoko.at',   // Die produktive Shopify-Domain
+    'https://koko-test-shop.myshopify.com/',   // Die development Shopify-Domain
     'http://127.0.0.1:8080'  // Die URL für lokale Tests mit `test.html`
 ];
 
