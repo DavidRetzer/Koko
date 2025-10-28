@@ -30,6 +30,7 @@ Anleitung zur Integration in Shopify:
     right: var(--koko-chat-side-spacing);
     z-index: 9999;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    animation: koko-widget-slide-in 0.8s cubic-bezier(0.25, 1, 0.5, 1) 1s both;
   }
 
   .koko-chat-button {
@@ -255,9 +256,51 @@ Anleitung zur Integration in Shopify:
       border-radius: 12px;
     }
   }
+
+  /* Welcome Bubble Styles */
+  .koko-chat-welcome-bubble {
+    position: absolute;
+    bottom: calc(var(--koko-chat-button-size) + 15px);
+    right: 0;
+    width: 300px;
+    background-color: var(--koko-chat-primary-color);
+    color: white;
+    padding: 12px 18px;
+    border-radius: 18px;
+    border-bottom-right-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+    visibility: hidden;
+    font-size: 0.95em;
+    pointer-events: none; /* So it doesn't block clicks */
+    line-height: 1.5;
+  }
+
+  .koko-chat-welcome-bubble.koko-is-visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    visibility: visible;
+  }
+
+  /* Animation for the whole widget */
+  @keyframes koko-widget-slide-in {
+    from {
+      transform: translateY(calc(100% + var(--koko-chat-bottom-spacing)));
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
 </style>
 
 <div class="koko-chat-widget-container" id="koko-chat-widget">
+  <!-- Welcome Bubble -->
+  <div class="koko-chat-welcome-bubble">
+    Konnichiwa! Mein Name ist Koko, Ihr virtueller Berater für authentischen japanischen Tee.
+  </div>
+
   <!-- Chat Window -->
   <div class="koko-chat-window">
     <div class="koko-chat-header">
@@ -267,7 +310,7 @@ Anleitung zur Integration in Shopify:
     <div class="koko-chat-messages">
       <!-- Chat messages will be appended here -->
       <div class="koko-chat-message koko-bot">
-        Hallo! Ich bin Koko, Ihr persönlicher Tee-Berater. Wie kann ich Ihnen heute helfen?
+        Herzlich willkommen bei Shinkoko. Ich bin Koko.<br><br>Als Ihr persönlicher Experte für japanische Teespezialitäten stehe ich Ihnen gerne zur Seite. Haben Sie eine Frage oder suchen Sie eine Empfehlung?
       </div>
     </div>
     <form class="koko-chat-form">
@@ -317,13 +360,34 @@ Anleitung zur Integration in Shopify:
     const conversationHistory = [
       {
         role: 'model',
-        parts: [{ text: 'Hallo! Ich bin Koko, Ihr persönlicher Tee-Berater. Wie kann ich Ihnen heute helfen?' }]
+        parts: [{ text: 'Herzlich willkommen bei Shinkoko. Ich bin Koko.\n\nAls Ihr persönlicher Experte für japanische Teespezialitäten stehe ich Ihnen gerne zur Seite. Haben Sie eine Frage oder suchen Sie eine Empfehlung?' }]
       }
     ];
+
+    // --- Logic for Welcome Bubble ---
+    const welcomeBubble = chatWidget.querySelector('.koko-chat-welcome-bubble');
+
+    // Show bubble after 3 seconds, but only if chat is not already open
+    const showBubbleTimeout = setTimeout(() => {
+      if (!chatWidget.classList.contains('koko-chat-open')) {
+        welcomeBubble.classList.add('koko-is-visible');
+      }
+    }, 3000);
+
+    // Hide bubble after another 10 seconds
+    const hideBubbleTimeout = setTimeout(() => {
+      welcomeBubble.classList.remove('koko-is-visible');
+    }, 13000); // 3s delay + 10s visible
 
     // Funktion zum Öffnen/Schließen des Chat-Fensters
     toggleButton.addEventListener('click', () => {
       chatWidget.classList.toggle('koko-chat-open');
+      
+      // Hide welcome bubble and clear timeouts if user interacts
+      clearTimeout(showBubbleTimeout);
+      clearTimeout(hideBubbleTimeout);
+      welcomeBubble.classList.remove('koko-is-visible');
+
       if (chatWidget.classList.contains('koko-chat-open')) {
         inputField.focus();
       }
@@ -346,10 +410,34 @@ Anleitung zur Integration in Shopify:
       fetchBotResponse();
     });
 
+    function markdownToHtml(text) {
+      // 1. Escape any existing HTML to prevent XSS.
+      const escapedText = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+      // 2. Handle bullet points at the start of a line.
+      // The 'gm' flags are for global (all occurrences) and multiline (^ matches start of line).
+      let formattedText = escapedText.replace(/^(\s*)\*\s/gm, '$1&bull; ');
+
+      // 3. Convert markdown to HTML. Order is important.
+      formattedText = formattedText
+        .replace(/\*\*\*(.*?)\*\*\*/g, '<b><i>$1</i></b>') // Bold & Italic
+        .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')     // Bold
+        .replace(/\*(.*?)\*/g, '<i>$1</i>');      // Italic
+
+      // 4. Convert newlines to <br> tags for display.
+      return formattedText.replace(/\n/g, '<br>');
+    }
+
     function addMessage(text, role) {
       const messageElement = document.createElement('div');
       messageElement.classList.add('koko-chat-message', `koko-${role}`);
-      messageElement.textContent = text;
+      
+      if (role === 'bot') {
+        messageElement.innerHTML = markdownToHtml(text);
+      } else {
+        messageElement.textContent = text;
+      }
+      
       messagesContainer.appendChild(messageElement);
       scrollToBottom();
       return messageElement;
@@ -403,7 +491,7 @@ Anleitung zur Integration in Shopify:
       } catch (error) {
         console.error('Fehler bei der Kommunikation mit dem Chatbot-Server:', error);
         removeThinkingIndicator();
-        const errorMessage = 'Entschuldigung, es ist ein technisches Problem aufgetreten. Bitte versuchen Sie es später erneut.';
+        const errorMessage = 'Ich bitte um einen Moment Geduld. Es ist gerade eine kleine Störung aufgetreten. Bitte senden Sie Ihre Anfrage gleich noch einmal.';
         addMessage(errorMessage, 'bot');
         conversationHistory.push({ role: 'model', parts: [{ text: errorMessage }] });
       }
