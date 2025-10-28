@@ -1,6 +1,6 @@
 {% comment %}
   KOKO - SHINKOKO GEMINI CHATBOT WIDGET
-  Version: 1.0.0
+  Version: 1.2.0
 
   This file contains the complete code for the chatbot widget.
   To install, copy this code into your Shopify theme's `theme.liquid` file
@@ -303,9 +303,6 @@
     </div>
     <div class="koko-chat-messages">
       <!-- Chat messages will be appended here -->
-      <div class="koko-chat-message koko-bot">
-        Herzlich willkommen bei Shinkoko. Ich bin Koko.<br><br>Als Ihr persönlicher Experte für japanische Teespezialitäten stehe ich Ihnen gerne zur Seite. Haben Sie eine Frage oder suchen Sie eine Empfehlung?
-      </div>
     </div>
     <form class="koko-chat-form">
       <input type="text" placeholder="Frage stellen..." aria-label="Ihre Nachricht" required>
@@ -350,39 +347,86 @@
     const chatForm = chatWidget.querySelector('.koko-chat-form');
     const inputField = chatForm.querySelector('input');
 
-    // In-memory conversation history.
-    const conversationHistory = [
-      {
-        role: 'model',
-        parts: [{ text: 'Herzlich willkommen bei Shinkoko. Ich bin Koko.\n\nAls Ihr persönlicher Experte für japanische Teespezialitäten stehe ich Ihnen gerne zur Seite. Haben Sie eine Frage oder suchen Sie eine Empfehlung?' }]
+    // In-memory conversation history, loaded from sessionStorage or initialized.
+    let conversationHistory = [];
+
+    const hasStoredHistory = sessionStorage.getItem('koko-chat-history');
+    let wasChatOpen = sessionStorage.getItem('koko-chat-open-status') === 'true'; // Check if chat was previously open
+
+    function saveHistory() {
+      sessionStorage.setItem('koko-chat-history', JSON.stringify(conversationHistory));
+    }
+
+    function saveChatOpenStatus(isOpen) {
+      sessionStorage.setItem('koko-chat-open-status', isOpen);
+    }
+
+    function initializeChat() {
+      if (hasStoredHistory) {
+        conversationHistory = JSON.parse(hasStoredHistory);
+        // Clear existing messages
+        messagesContainer.innerHTML = '';
+        // Re-render history
+        conversationHistory.forEach(message => {
+          // The initial message from the model has a different structure.
+          if (message.role === 'model') {
+            addMessage(message.parts[0].text, 'bot');
+          } else {
+            addMessage(message.parts[0].text, message.role);
+          }
+        });
+
+        // If chat was open, open it again.
+        if (wasChatOpen) {
+          chatWidget.classList.add('koko-chat-open');
+        }
+        // No welcome bubble if history exists.
+
+      } else {
+        // If no history, add the initial welcome message
+        const initialMessage = {
+          role: 'model',
+          parts: [{ text: 'Herzlich willkommen bei Shinkoko. Ich bin Koko.\n\nAls Ihr persönlicher Experte für japanische Teespezialitäten stehe ich Ihnen gerne zur Seite. Haben Sie eine Frage oder suchen Sie eine Empfehlung?' }]
+        };
+        conversationHistory.push(initialMessage);
+        addMessage(initialMessage.parts[0].text, 'bot');
+        saveHistory();
+        saveChatOpenStatus(false); // Chat starts closed if no history
       }
-    ];
+    }
 
     // --- Welcome Bubble Logic ---
     const welcomeBubble = chatWidget.querySelector('.koko-chat-welcome-bubble');
 
-    // Show bubble after 3s if chat is not open.
-    const showBubbleTimeout = setTimeout(() => {
-      if (!chatWidget.classList.contains('koko-chat-open')) {
-        welcomeBubble.classList.add('koko-is-visible');
-      }
-    }, 3000);
+    let showBubbleTimeout, hideBubbleTimeout;
 
-    // Hide bubble after another 10s.
-    const hideBubbleTimeout = setTimeout(() => {
-      welcomeBubble.classList.remove('koko-is-visible');
-    }, 13000); // 3s delay + 10s visible
+    // Only show welcome bubble if no history and chat is not open.
+    if (!hasStoredHistory && !wasChatOpen) {
+      // Show bubble after 3s if chat is not open.
+      showBubbleTimeout = setTimeout(() => {
+        if (!chatWidget.classList.contains('koko-chat-open')) {
+          welcomeBubble.classList.add('koko-is-visible');
+        }
+      }, 3000);
+
+      // Hide bubble after another 10s.
+      hideBubbleTimeout = setTimeout(() => {
+        welcomeBubble.classList.remove('koko-is-visible');
+      }, 13000); // 3s delay + 10s visible
+    }
 
     // Toggle chat window open/closed.
     toggleButton.addEventListener('click', () => {
       chatWidget.classList.toggle('koko-chat-open');
+      const isOpen = chatWidget.classList.contains('koko-chat-open');
+      saveChatOpenStatus(isOpen);
       
       // Hide welcome bubble and clear timeouts if user interacts.
       clearTimeout(showBubbleTimeout);
       clearTimeout(hideBubbleTimeout);
       welcomeBubble.classList.remove('koko-is-visible');
 
-      if (chatWidget.classList.contains('koko-chat-open')) {
+      if (isOpen) {
         inputField.focus();
       }
     });
@@ -396,6 +440,7 @@
       // Add user message to history and UI.
       addMessage(userInput, 'user');
       conversationHistory.push({ role: 'user', parts: [{ text: userInput }] });
+      saveHistory();
       
       inputField.value = '';
       showThinkingIndicator();
@@ -495,6 +540,7 @@
         // Add bot response to history and UI.
         addMessage(botAnswer, 'bot');
         conversationHistory.push({ role: 'model', parts: [{ text: botAnswer }] });
+        saveHistory();
 
       } catch (error) {
         console.error('Error communicating with the chatbot server:', error);
@@ -502,7 +548,10 @@
         const errorMessage = 'Ich bitte um einen Moment Geduld. Es ist gerade eine kleine Störung aufgetreten. Bitte senden Sie Ihre Anfrage gleich noch einmal.';
         addMessage(errorMessage, 'bot');
         conversationHistory.push({ role: 'model', parts: [{ text: errorMessage }] });
+        saveHistory();
       }
     }
+
+    initializeChat();
   });
 </script>
