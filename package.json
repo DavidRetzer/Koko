@@ -4,7 +4,6 @@
   "description": "Proxy for Gemini Chatbot on Shopify (Vercel)",
   "type": "module",
   "dependencies": {
-    "@google/genai": "latest",
-    "express": "latest"
+    "@google/genai": "latest"
   }
 }
