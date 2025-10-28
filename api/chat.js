@@ -198,10 +198,10 @@ export default async function (req, res) {
 
         // --- 3. Gemini-Aufruf ---
         const response = await ai.models.generateContent({
-            model: "gemini-1.5-flash", 
+            model: "gemini-2.5-flash", 
             contents: history,
             config: {
-                systemInstruction: DYNAMIC_SYSTEM_PROMPT, // Benutzt den neuen, dynamischen Prompt
+                systemInstruction: DYNAMIC_SYSTEM_PROMPT,
             }
         });
 
