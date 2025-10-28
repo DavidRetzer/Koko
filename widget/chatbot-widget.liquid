@@ -1,22 +1,16 @@
 {% comment %}
-----------------------------------------------------------------------------------------------------
-KOKO - SHINKOKO GEMINI CHATBOT WIDGET
-Version: 1.0.0
-----------------------------------------------------------------------------------------------------
-Anleitung zur Integration in Shopify:
-1. Kopieren Sie den gesamten Inhalt dieser Datei.
-2. Gehen Sie in Ihrem Shopify-Adminbereich zu "Onlineshop" > "Themes".
-3. Klicken Sie bei Ihrem aktuellen Theme auf "Aktionen" > "Code bearbeiten".
-4. Öffnen Sie die Layout-Datei `theme.liquid`.
-5. Fügen Sie den kopierten Code direkt vor dem schließenden `</body>`-Tag ein.
-6. Passen Sie die beiden Konfigurationsvariablen `PROXY_SERVER_URL` und `CHATBOT_SECRET` im
-   JavaScript-Teil unten an Ihre Vercel-Deployment-Daten an.
-7. Speichern Sie die Änderungen.
-----------------------------------------------------------------------------------------------------
+  KOKO - SHINKOKO GEMINI CHATBOT WIDGET
+  Version: 1.0.0
+
+  This file contains the complete code for the chatbot widget.
+  To install, copy this code into your Shopify theme's `theme.liquid` file
+  right before the closing `</body>` tag.
+
+  Configuration is done in the </script> section below.
 {% endcomment %}
 
 <style>
-  /* Stellt sicher, dass das Widget die Seitenhöhe nicht beeinflusst */
+  /* Ensures the widget does not affect the page height. */
   :root {
     --koko-chat-primary-color: #2c3e50;
     --koko-chat-button-size: 55px;
@@ -331,23 +325,23 @@ Anleitung zur Integration in Shopify:
 <script>
   document.addEventListener('DOMContentLoaded', () => {
     // ###################################################################################
-    // # KONFIGURATION: Bitte passen Sie diese beiden Werte an Ihr Setup an.
+    // # CONFIGURATION: Adjust these two values to match your setup.
     // ###################################################################################
 
     /**
-     * Die vollständige URL zu Ihrer Vercel Serverless Function.
-     * Beispiel: 'https://ihr-projekt-name.vercel.app/api/chat'
+     * The full URL of your Vercel Serverless Function.
+     * @example 'https://your-project-name.vercel.app/api/chat'
      */
     const PROXY_SERVER_URL = 'https://kokoproxy.vercel.app/api/chat';
 
     /**
-     * Der geheime Schlüssel zur Authentifizierung beim Proxy-Server.
-     * Dieser Wert MUSS mit der `CHATBOT_SECRET` Umgebungsvariable in Vercel übereinstimmen.
+     * The secret key for authenticating with the proxy server.
+     * This value MUST match the `CHATBOT_SECRET` environment variable in Vercel.
      */
     const CHATBOT_SECRET = 'Ihr-geheimer-schluessel-hier-einfuegen';
 
     // ###################################################################################
-    // # Widget-Logik (ab hier nichts ändern)
+    // # WIDGET LOGIC: Do not change anything below this line.
     // ###################################################################################
 
     const chatWidget = document.getElementById('koko-chat-widget');
@@ -356,7 +350,7 @@ Anleitung zur Integration in Shopify:
     const chatForm = chatWidget.querySelector('.koko-chat-form');
     const inputField = chatForm.querySelector('input');
 
-    // Der Konversationsverlauf wird im Speicher gehalten
+    // In-memory conversation history.
     const conversationHistory = [
       {
         role: 'model',
@@ -364,26 +358,26 @@ Anleitung zur Integration in Shopify:
       }
     ];
 
-    // --- Logic for Welcome Bubble ---
+    // --- Welcome Bubble Logic ---
     const welcomeBubble = chatWidget.querySelector('.koko-chat-welcome-bubble');
 
-    // Show bubble after 3 seconds, but only if chat is not already open
+    // Show bubble after 3s if chat is not open.
     const showBubbleTimeout = setTimeout(() => {
       if (!chatWidget.classList.contains('koko-chat-open')) {
         welcomeBubble.classList.add('koko-is-visible');
       }
     }, 3000);
 
-    // Hide bubble after another 10 seconds
+    // Hide bubble after another 10s.
     const hideBubbleTimeout = setTimeout(() => {
       welcomeBubble.classList.remove('koko-is-visible');
     }, 13000); // 3s delay + 10s visible
 
-    // Funktion zum Öffnen/Schließen des Chat-Fensters
+    // Toggle chat window open/closed.
     toggleButton.addEventListener('click', () => {
       chatWidget.classList.toggle('koko-chat-open');
       
-      // Hide welcome bubble and clear timeouts if user interacts
+      // Hide welcome bubble and clear timeouts if user interacts.
       clearTimeout(showBubbleTimeout);
       clearTimeout(hideBubbleTimeout);
       welcomeBubble.classList.remove('koko-is-visible');
@@ -393,41 +387,51 @@ Anleitung zur Integration in Shopify:
       }
     });
 
-    // Funktion zum Senden der Nachricht
+    // Handle message submission.
     chatForm.addEventListener('submit', (event) => {
       event.preventDefault();
       const userInput = inputField.value.trim();
       if (!userInput) return;
 
-      // Benutzernachricht zum Verlauf und zur UI hinzufügen
+      // Add user message to history and UI.
       addMessage(userInput, 'user');
       conversationHistory.push({ role: 'user', parts: [{ text: userInput }] });
       
       inputField.value = '';
       showThinkingIndicator();
       
-      // Anfrage an den Proxy-Server senden
+      // Fetch bot response.
       fetchBotResponse();
     });
 
+    /**
+     * Converts a markdown-like text to HTML.
+     * @param {string} text The text to convert.
+     * @returns {string} The HTML string.
+     */
     function markdownToHtml(text) {
-      // 1. Escape any existing HTML to prevent XSS.
+      // 1. Escape HTML to prevent XSS.
       const escapedText = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-      // 2. Handle bullet points at the start of a line.
-      // The 'gm' flags are for global (all occurrences) and multiline (^ matches start of line).
+      // 2. Handle bullet points.
       let formattedText = escapedText.replace(/^(\s*)\*\s/gm, '$1&bull; ');
 
-      // 3. Convert markdown to HTML. Order is important.
+      // 3. Convert markdown to HTML.
       formattedText = formattedText
         .replace(/\*\*\*(.*?)\*\*\*/g, '<b><i>$1</i></b>') // Bold & Italic
         .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')     // Bold
         .replace(/\*(.*?)\*/g, '<i>$1</i>');      // Italic
 
-      // 4. Convert newlines to <br> tags for display.
+      // 4. Convert newlines to <br>.
       return formattedText.replace(/\n/g, '<br>');
     }
 
+    /**
+     * Adds a message to the chat UI.
+     * @param {string} text The message text.
+     * @param {string} role The message role ('user' or 'bot').
+     * @returns {HTMLElement} The message element.
+     */
     function addMessage(text, role) {
       const messageElement = document.createElement('div');
       messageElement.classList.add('koko-chat-message', `koko-${role}`);
@@ -443,6 +447,7 @@ Anleitung zur Integration in Shopify:
       return messageElement;
     }
     
+    // Shows the thinking indicator.
     function showThinkingIndicator() {
       const indicator = document.createElement('div');
       indicator.classList.add('koko-chat-message', 'koko-bot', 'koko-thinking');
@@ -452,6 +457,7 @@ Anleitung zur Integration in Shopify:
       scrollToBottom();
     }
 
+    // Removes the thinking indicator.
     function removeThinkingIndicator() {
       const indicator = document.getElementById('koko-thinking-indicator');
       if (indicator) {
@@ -459,10 +465,12 @@ Anleitung zur Integration in Shopify:
       }
     }
 
+    // Scrolls the message container to the bottom.
     function scrollToBottom() {
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
 
+    // Fetches the bot response from the proxy server.
     async function fetchBotResponse() {
       try {
         const response = await fetch(PROXY_SERVER_URL, {
@@ -478,18 +486,18 @@ Anleitung zur Integration in Shopify:
 
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.error || `HTTP-Fehler: ${response.status}`);
+          throw new Error(errorData.error || `HTTP Error: ${response.status}`);
         }
 
         const data = await response.json();
         const botAnswer = data.answer;
 
-        // Bot-Antwort zum Verlauf und zur UI hinzufügen
+        // Add bot response to history and UI.
         addMessage(botAnswer, 'bot');
         conversationHistory.push({ role: 'model', parts: [{ text: botAnswer }] });
 
       } catch (error) {
-        console.error('Fehler bei der Kommunikation mit dem Chatbot-Server:', error);
+        console.error('Error communicating with the chatbot server:', error);
         removeThinkingIndicator();
         const errorMessage = 'Ich bitte um einen Moment Geduld. Es ist gerade eine kleine Störung aufgetreten. Bitte senden Sie Ihre Anfrage gleich noch einmal.';
         addMessage(errorMessage, 'bot');
