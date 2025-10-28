@@ -179,11 +179,11 @@ export default async function (req, res) {
     const lastUserQuestion = history[history.length - 1].parts;
 
     try {
-        console.log(lastUserQuestion);
+        console.info(lastUserQuestion);
         // --- 1. RAG-Schritt: Kontext holen ---
         const relevantContext = await getRelevantWebsiteContext(lastUserQuestion);
 
-        console.log(relevantContext)
+        console.info(relevantContext)
         // --- 2. Prompt-Anreicherung ---
         // Passen Sie Ihren System-Prompt an, um den RAG-Kontext zu nutzen
         const DYNAMIC_SYSTEM_PROMPT = `
