@@ -166,6 +166,20 @@
     align-self: flex-start;
     border-bottom-left-radius: 4px;
   }
+
+  /* Style for links within bot messages for better visibility. */
+  .koko-chat-message.koko-bot a {
+    color: #b2d8ff; /* A light blue, softer than pure white. */
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    transition: all 0.2s ease;
+  }
+
+  .koko-chat-message.koko-bot a:hover {
+    color: #ffffff; /* Brighten on hover */
+    text-decoration-thickness: 2px;
+  }
   
   .koko-chat-message.koko-bot.koko-thinking {
     display: flex;
@@ -510,7 +524,12 @@
         .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')     // Bold
         .replace(/\*(.*?)\*/g, '<i>$1</i>');      // Italic
 
-      // 4. Convert newlines to <br>.
+      // 4. Convert Markdown links to HTML links.
+      // This is done after other markdown to allow for formatted text within links,
+      // and to avoid corrupting URLs that might contain special characters like '*'.
+      formattedText = formattedText.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+
+      // 5. Convert newlines to <br>.
       return formattedText.replace(/\n/g, '<br>');
     }
 
