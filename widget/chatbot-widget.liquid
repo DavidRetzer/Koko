@@ -96,6 +96,9 @@
   }
 
   .koko-chat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     background-color: var(--koko-chat-primary-color);
     color: white;
     padding: 15px 20px;
@@ -113,6 +116,24 @@
     margin: 4px 0 0;
     font-size: 0.8em;
     opacity: 0.9;
+  }
+
+  .koko-chat-header #koko-new-chat-button {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 5px;
+    margin-left: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s ease;
+  }
+
+  .koko-chat-header #koko-new-chat-button:hover {
+    background-color: rgba(255, 255, 255, 0.2);
   }
 
   .koko-chat-messages {
@@ -298,8 +319,15 @@
   <!-- Chat Window -->
   <div class="koko-chat-window">
     <div class="koko-chat-header">
-      <h3>Koko, Ihr Tee-Berater</h3>
-      <p>Ich helfe Ihnen gerne bei Fragen zu unserem Sortiment.</p>
+      <div>
+        <h3>Koko, Ihr Tee-Berater</h3>
+        <p>Ich helfe Ihnen gerne bei Fragen zu unserem Sortiment.</p>
+      </div>
+      <button id="koko-new-chat-button" aria-label="Neuen Chat starten">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
+          <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8V23l4-4-4-4v3z"/>
+        </svg>
+      </button>
     </div>
     <div class="koko-chat-messages">
       <!-- Chat messages will be appended here -->
@@ -346,6 +374,7 @@
     const messagesContainer = chatWidget.querySelector('.koko-chat-messages');
     const chatForm = chatWidget.querySelector('.koko-chat-form');
     const inputField = chatForm.querySelector('input');
+    const newChatButton = chatWidget.querySelector('#koko-new-chat-button');
 
     // In-memory conversation history, loaded from sessionStorage or initialized.
     let conversationHistory = [];
@@ -359,6 +388,17 @@
 
     function saveChatOpenStatus(isOpen) {
       sessionStorage.setItem('koko-chat-open-status', isOpen);
+    }
+
+    function resetChat() {
+      if (confirm("Möchten Sie unser Gespräch zurücksetzen? Der bisherige Verlauf wird dabei gelöscht und wir können von Neuem beginnen.")) {
+        sessionStorage.removeItem('koko-chat-history');
+        sessionStorage.removeItem('koko-chat-open-status');
+        conversationHistory = [];
+        messagesContainer.innerHTML = '';
+        chatWidget.classList.remove('koko-chat-open'); // Close chat window
+        initializeChat(); // Re-initialize to show welcome message
+      }
     }
 
     function initializeChat() {
@@ -430,6 +470,9 @@
         inputField.focus();
       }
     });
+
+    // New Chat Button Event Listener
+    newChatButton.addEventListener('click', resetChat);
 
     // Handle message submission.
     chatForm.addEventListener('submit', (event) => {
