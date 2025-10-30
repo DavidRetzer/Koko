@@ -94,6 +94,7 @@ Koko (GUTE Antwort): 'Wir führen eine wunderbare Auswahl an Statuen. Dazu gehö
  */
 const ALLOWED_ORIGINS = [
     'https://shinkoko.at',
+    'https://shinkoko.myshopify.com',
     'https://koko-test-shop.myshopify.com'
 ];
 
@@ -145,6 +146,59 @@ async function getRelevantWebsiteContext(userQuery) {
 }
 
 /**
+ * Extrahiert relevante Suchbegriffe aus einer natürlichen Benutzeranfrage
+ * mithilfe eines schnellen LLM-Aufrufs, um die RAG-Suche zu optimieren.
+ * @param {string} userQuestion - Die vollständige, natürliche Anfrage des Benutzers.
+ * @param {GoogleGenAI} ai - Die initialisierte GoogleGenAI-Instanz.
+ * @returns {Promise<string>} - Eine Zeichenkette mit optimierten Suchbegriffen.
+ */
+async function extractSearchQuery(userQuestion, ai) {
+    // Ein spezieller Prompt, der die KI anweist, nur Keywords zu extrahieren.
+    const extractionPrompt = `Du bist ein Assistent zur Keyword-Extraktion für eine Suchmaschine. Analysiere die folgende Benutzeranfrage und extrahiere die KERN-Suchbegriffe (Produktnamen, Konzepte, Entitäten). Entferne alle Füllwörter, Höflichkeitsfloskeln und Fragesätze. Gib NUR die 3-5 wichtigsten Begriffe zurück, getrennt durch Leerzeichen.
+
+Beispiele:
+- Frage: "Ich sehe hier eine Meditationsglocke Daitokuji auf euerer Webseite. Wozu ist diese?"
+- Antwort: "Meditationsglocke Daitokuji"
+- Frage: "Was ist der Unterschied zwischen Sencha und Matcha?"
+- Antwort: "Unterschied Sencha Matcha"
+- Frage: "Ich suche einen Tee, der mir beim Einschlafen hilft."
+- Antwort: "Tee Einschlafen beruhigend"
+
+---
+Benutzerfrage: "${userQuestion}"
+Extrahierte Suchbegriffe:`;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash", // Das schnelle Modell für diese Aufgabe
+            // Wichtig: Wir übergeben *nicht* den Chat-Verlauf, nur den Extraktions-Prompt
+            contents: [{ role: "user", parts: extractionPrompt }],
+            config: {
+                maxOutputTokens: 30, // Ausreichend Platz für Keywords
+                temperature: 0.0   // Deterministisch, keine Kreativität
+            }
+        });
+
+        const keywords = response.text.trim();
+        
+        console.log(`Originalfrage: "${userQuestion}" | Extrahierte Keywords: "${keywords}"`);
+        
+        // Ein kleiner Sicherheitscheck: Wenn keine Keywords extrahiert wurden, 
+        // oder die Antwort zu lang ist, lieber die Originalfrage nutzen.
+        if (!keywords || keywords.length > 100) {
+            return userQuestion;
+        }
+
+        return keywords;
+
+    } catch (error) {
+        console.error("Fehler bei der Keyword-Extraktion:", error);
+        // Sicherer Fallback: die ursprüngliche Frage verwenden, wenn die Extraktion fehlschlägt
+        return userQuestion;
+    }
+}
+
+/**
  * Haupt-Einstiegspunkt für die Vercel Serverless-Funktion.
  * Verarbeitet eingehende HTTP-Anfragen.
  * @param {object} req - Das Vercel-Anfrageobjekt.
@@ -189,10 +243,14 @@ export default async function (req, res) {
     const lastUserQuestion = history[history.length - 1].parts;
 
     try {
-        // --- 1. RAG-Schritt: Kontext holen ---
-        const relevantContext = await getRelevantWebsiteContext(lastUserQuestion);
+        // --- 1. Keyword-Extraktion ---
+        // Wir übergeben 'ai' (den initialisierten Client) an die Funktion.
+        const searchQuery = await extractSearchQuery(lastUserQuestion, ai);
 
-        // --- 2. Prompt-Anreicherung ---
+        // --- 2. RAG-Schritt: Kontext holen ---
+        const relevantContext = await getRelevantWebsiteContext(searchQuery);
+
+        // --- 3. Prompt-Anreicherung ---
         // Passt den System-Prompt an, um den RAG-Kontext einzuschließen.
         const DYNAMIC_SYSTEM_PROMPT = `
             ${SYSTEM_PROMPT}
@@ -205,7 +263,7 @@ export default async function (req, res) {
             ${relevantContext}
             ---        `;
 
-        // --- 3. Gemini-Aufruf ---
+        // --- 4. Gemini-Aufruf ---
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash", 
             contents: history,
