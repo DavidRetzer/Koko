@@ -173,7 +173,7 @@ Extrahierte Suchbegriffe:`;
         const response = await ai.models.generateContent({
             model: "gemini-2.5-flash", // Das schnelle Modell für diese Aufgabe
             // Wichtig: Wir übergeben *nicht* den Chat-Verlauf, nur den Extraktions-Prompt
-            contents: [{ role: "user", parts: [{ text: extractionPrompt }] }],
+            contents: [{ type: 'text', text: extractionPrompt }],
             config: {
                 maxOutputTokens: 30, // Ausreichend Platz für Keywords
                 temperature: 0.0   // Deterministisch, keine Kreativität
