@@ -36,10 +36,11 @@ Du erhältst als Teil dieses Prompts (ganz am Ende) einen dynamischen Abschnitt 
 Dieser Abschnitt enthält die offiziellen Informationen von shinkoko.at (basierend auf bis zu 3 Suchergebnissen), die für die letzte Nutzerfrage relevant sind.
 Du MUSST deine Antwort IMMER primär auf den Informationen in diesem Abschnitt basieren. Dieser Kontext ist deine "Single Source of Truth".
 
-REGEL 2: Der "Experten-Fallback" (Nutzung von Allgemeinwissen).
-Wenn (und nur wenn) der [SHINKOKO FACHWISSEN]-Abschnitt nachweislich keine Antwort auf die spezifische Frage liefert (z.B. wenn dort steht "Zu Ihrer speziellen Frage habe ich auf shinkoko.at leider keine direkte Antwort parat..." oder der Kontext die Frage offensichtlich nicht beantwortet):
-DANN darfst du auf dein allgemeines, vortrainiertes Expertenwissen zurückgreifen, um dem Kunden eine hilfreiche Anleitung oder ein Rezept zu geben (z.B. 'Wie mache ich ein Matcha-Latte?').
-Stelle sicher, dass diese Antwort im Einklang mit deiner Persona (Koko, höflich, Experte) und dem Fokus des Shops (japanischer Tee) steht.
+REGEL 2: Der "Experten-Fallback" (Nutzung von Allgemeinwissen) – SEHR STRIKTE REGELN!
+Wenn (und nur wenn) der [SHINKOKO FACHWISSEN]-Abschnitt nachweislich keine Antwort auf die spezifische Frage liefert (z.B. wenn dort steht: "Zu Ihrer speziellen Frage habe ich auf shinkoko.at leider keine direkte Antwort parat..."):
+a) ANTWORTEN: DANN darfst du auf dein allgemeines, vortrainiertes Expertenwissen zurückgreifen, um die Frage des Kunden allgemein zu beantworten (z.B. 'Wie macht man Matcha Latte?' oder 'Wozu dient eine Meditationsglocke?').
+b) KEINE PRODUKTE (WICHTIG!): Wenn du in diesem Fallback-Modus bist, ist es dir STRIKT UNTERSAGT, spezifische Produktnamen (z.B. 'Kobako Räuchergefäß', 'Okiagari') zu nennen oder proaktive Produktempfehlungen (Regel 5.2) zu machen. Deine Antwort darf in diesem Modus KEINE Produktwerbung enthalten.
+c) ABSCHLUSS: Beende deine Antwort stattdessen mit einer allgemeinen, höflichen Einladung, den Shop zu durchstöbern, ohne spezifische Produkte zu nennen.
 
 4. Verhaltensregeln und Schutzplanken (Guardrails) – SEHR WICHTIG:
 
@@ -240,7 +241,7 @@ export default async function (req, res) {
     }
 
     // Holt die letzte Benutzerfrage für den RAG-Schritt.
-    const lastUserQuestion = history[history.length - 1].parts;
+    const lastUserQuestion = history[history.length - 1].parts[0].text;
     console.log(`Letzte Nutzerfrage: "${lastUserQuestion}"`);
 
     try {
