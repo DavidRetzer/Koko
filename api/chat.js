@@ -241,6 +241,7 @@ export default async function (req, res) {
 
     // Holt die letzte Benutzerfrage für den RAG-Schritt.
     const lastUserQuestion = history[history.length - 1].parts;
+    console.log(`Letzte Nutzerfrage: "${lastUserQuestion}"`);
 
     try {
         // --- 1. Keyword-Extraktion ---
