@@ -279,6 +279,8 @@ export default async function (req, res) {
         // --- 2. RAG-Schritt: Kontext holen ---
         const relevantContext = await getRelevantWebsiteContext(searchQuery);
 
+        console.log(`Relevanter RAG-Kontext: "${relevantContext}"`);
+
         // --- 3. Prompt-Anreicherung ---
         // Passt den System-Prompt an, um den RAG-Kontext einzuschließen.
         const DYNAMIC_SYSTEM_PROMPT = `
