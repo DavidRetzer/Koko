@@ -406,12 +406,25 @@
 
     function resetChat() {
       if (confirm("Möchten Sie unser Gespräch zurücksetzen? Der bisherige Verlauf wird dabei gelöscht und wir können von Neuem beginnen.")) {
+        // 1. Clear storage and in-memory data
         sessionStorage.removeItem('koko-chat-history');
         sessionStorage.removeItem('koko-chat-open-status');
         conversationHistory = [];
+
+        // 2. Clear the UI display
         messagesContainer.innerHTML = '';
-        chatWidget.classList.remove('koko-chat-open'); // Close chat window
-        initializeChat(); // Re-initialize to show welcome message
+
+        // 3. Add the initial welcome message back to the history and UI
+        const initialMessage = {
+          role: 'model',
+          parts: [{ text: 'Herzlich willkommen bei Shinkoko. Ich bin Koko.\n\nAls Ihr persönlicher Experte für japanische Teespezialitäten stehe ich Ihnen gerne zur Seite. Haben Sie eine Frage oder suchen Sie eine Empfehlung?' }]
+        };
+        conversationHistory.push(initialMessage);
+        addMessage(initialMessage.parts[0].text, 'bot');
+
+        // 4. Save the new, clean state
+        saveHistory();
+        saveChatOpenStatus(true); // Keep chat open for immediate use
       }
     }
 
