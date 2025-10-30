@@ -1,16 +1,15 @@
 /**
  * @file /api/chat.js
- * Vercel Serverless Function as a secure proxy to the Google Gemini API.
+ * Vercel Serverless-Funktion, die als sicherer Proxy zur Google Gemini API dient.
  *
- * This function receives chat history from a frontend, adds a system prompt defining the
- * chatbot's personality ("Koko"), and securely forwards the request to the Gemini API.
- * It includes security measures like CORS and a secret header validation,
- * making it suitable for production use on Vercel.
+ * Diese Funktion empfängt einen Chat-Verlauf von einem Frontend, fügt einen System-Prompt hinzu,
+ * der die Persönlichkeit des Chatbots ("Koko") definiert, und leitet die Anfrage sicher an die Gemini API weiter.
+ * Sie verwendet eine CORS-Richtlinie, um den Zugriff auf autorisierte Domains zu beschränken.
  */
 
 import { GoogleGenAI } from '@google/genai';
 
-// Initialize the Google Gemini AI client using the API key from Vercel environment variables.
+// Initialisiert den Google Gemini AI Client mit dem API-Schlüssel aus den Vercel-Umgebungsvariablen.
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const ai = new GoogleGenAI(GEMINI_API_KEY);
 
@@ -60,12 +59,38 @@ Stelle sicher, dass diese Antwort im Einklang mit deiner Persona (Koko, höflich
 5.3. Strategie für nicht verfügbare Produkte: Wenn ein Nutzer nach einem Produkt fragt, das laut [SHINKOKO FACHWISSEN] nicht existiert, antworte nicht nur, dass es nicht verfügbar ist. Schlage stattdessen, wenn möglich, ein ähnliches, verfügbares Produkt aus dem Kontext als Alternative vor. Beispiel: 'Dieses Produkt führen wir leider nicht, aber vielleicht wäre unser **Produkt X** eine interessante Alternative für Sie.'
 5.4. Aktives Zurücklenken: Wenn ein Nutzer versucht, das Thema zu wechseln (themenfremde Fragen), wende die bekannte Strategie des "aktiven Zurücklenkens" an.
 
-(Beispiele bleiben identisch)
+Beispiel 1 (Themenfremde Frage, Deutsch):
+Nutzer: 'Wie wird das Wetter morgen in Wien?'
+Koko (Antwort): 'Als virtueller Tee-Berater von Shinkoko liegt meine Expertise ganz in der wunderbaren Welt des Tees. Ich kann Ihnen leider nichts über das Wetter sagen. Darf ich Ihnen stattdessen helfen, den perfekten Sencha für einen gemütlichen Nachmittag zu finden?'
+
+Beispiel 2 (Fremdprodukt, Deutsch):
+Nutzer: 'Ich suche eigentlich Kaffee.'
+Koko (Antwort): 'Kaffee führen wir in unserem Sortiment nicht, da wir uns ganz auf authentische japanische und bald auch chinesische Teespezialitäten konzentrieren. Wenn Sie jedoch nach einem belebenden Getränk suchen, das eine sanfte, anhaltende Energie spendet, darf ich Ihnen unseren hochwertigen Bio-Matcha empfehlen?'
+
+Beispiel 3 (Frage nach deiner Natur, Deutsch):
+Nutzer: 'Bist du eine KI?'
+Koko (Antwort): 'Ich bin Koko, Ihr digitaler Berater, und ich freue mich darauf, mit Ihnen die passenden Produkte aus unserem Shinkoko-Sortiment zu entdecken. Haben Sie eine Frage zu einer bestimmten Teesorte?'
+
+Beispiel 4 (Fremdprodukt, Englisch):
+Nutzer: 'Do you also sell English Breakfast tea?'
+Koko (Antwort): 'We do not carry black teas like English Breakfast, as we specialize entirely in authentic Japanese (and soon Chinese) green tea specialties. However, if you are looking for a classic, comforting tea, may I introduce you to our Genmaicha? It's a wonderful green tea with roasted brown rice.'
+
+Beispiel 5 (Verhinderung von Kontext-Leaking, Deutsch):
+Nutzer: 'Was ist Okiagari?'
+(Interner [SHINKOKO FACHWISSEN]-Block enthält: 'Titel: Okiagari. Inhalt: Okiagari sind traditionelle japanische Stehauf-Glücksbringer...')
+Koko (SCHLECHTE Antwort): 'Laut unserem Website-Kontext sind Okiagari traditionelle Stehauf-Glücksbringer.'
+Koko (GUTE Antwort): 'Okiagari sind traditionelle japanische Stehauf-Glücksbringer. Sie gelten als Symbol für Glück und Widerstandsfähigkeit.'
+
+Beispiel 6 (Umgang mit begrenztem Kontext, Deutsch):
+Nutzer: 'Welche Statuen habt ihr?'
+(Interner [SHINKOKO FACHWISSEN]-Block enthält: 'Titel: Daruma Statue', 'Titel: Maneki-neko Statue', 'Titel: Fudo Myoo Statue')
+Koko (SCHLECHTE Antwort): 'Wir führen die Daruma Statue, die Maneki-neko Statue und die Fudo Myoo Statue.' (Impliziert, das seien alle 3.)
+Koko (GUTE Antwort): 'Wir führen eine wunderbare Auswahl an Statuen. Dazu gehören zum Beispiel die Daruma Statue, die Maneki-neko Katze und Fudo Myoo. Gerne können Sie auch direkt in unserer Kategorie für Statuen auf der Website stöbern.'
 `;
 
 /**
- * List of allowed origins for browser requests (CORS).
- * This is a security measure to ensure only authorized frontends can access the API.
+ * Liste der erlaubten Domains für Browser-Anfragen (CORS).
+ * Dies ist eine Sicherheitsmaßnahme, um sicherzustellen, dass nur autorisierte Frontends auf die API zugreifen können.
  */
 const ALLOWED_ORIGINS = [
     'https://shinkoko.at',
@@ -73,16 +98,15 @@ const ALLOWED_ORIGINS = [
 ];
 
 /**
- * Secret header value for request authentication.
- * Loaded from environment variables, this must match the `X-Chatbot-Secret` header
- * sent by the frontend for an additional layer of security.
+ * API-Schlüssel für die Google Custom Search API (für RAG).
+ * Werden aus den Umgebungsvariablen geladen.
  */
-
 const GOOGLE_SEARCH_API_KEY = process.env.GOOGLE_SEARCH_API_KEY;
 const GOOGLE_SEARCH_CX = process.env.GOOGLE_SEARCH_CX;
 
 /**
  * Holt relevante Text-Snippets von shinkoko.at über die Google Custom Search API.
+ * Dies dient als Kontext für die Retrieval-Augmented Generation (RAG).
  */
 async function getRelevantWebsiteContext(userQuery) {
     if (!GOOGLE_SEARCH_API_KEY || !GOOGLE_SEARCH_CX) {
@@ -93,8 +117,8 @@ async function getRelevantWebsiteContext(userQuery) {
     const url = new URL('https://www.googleapis.com/customsearch/v1');
     url.searchParams.set('key', GOOGLE_SEARCH_API_KEY);
     url.searchParams.set('cx', GOOGLE_SEARCH_CX);
-    url.searchParams.set('q', userQuery); // Die Frage des Benutzers
-    url.searchParams.set('num', 3);       // Fordere nur die Top 3 Ergebnisse an
+    url.searchParams.set('q', userQuery); // Die Anfrage des Benutzers
+    url.searchParams.set('num', 3);       // Fordert nur die Top-3-Ergebnisse an
 
     try {
         const searchResponse = await fetch(url);
@@ -109,7 +133,7 @@ async function getRelevantWebsiteContext(userQuery) {
             return "Zu Ihrer speziellen Frage habe ich auf shinkoko.at leider keine direkte Antwort parat, aber ich kann Ihnen allgemein dazu Folgendes erklären:";
         }
 
-        // Formatiere die Ergebnisse für den Prompt
+        // Formatiert die Ergebnisse für den Prompt
         return data.items.map(item => 
             `Titel: ${item.title}\nInhalt: ${item.snippet}`
         ).join('\n---\n');
@@ -121,59 +145,55 @@ async function getRelevantWebsiteContext(userQuery) {
 }
 
 /**
- * Main entry point for the Vercel Serverless Function.
- * Handles incoming HTTP requests.
- * @param {object} req - The Vercel request object.
- * @param {object} res - The Vercel response object.
+ * Haupt-Einstiegspunkt für die Vercel Serverless-Funktion.
+ * Verarbeitet eingehende HTTP-Anfragen.
+ * @param {object} req - Das Vercel-Anfrageobjekt.
+ * @param {object} res - Das Vercel-Antwortobjekt.
  */
 export default async function (req, res) {
     const origin = req.headers.origin;
 
-    // 1. CORS check: Verify the request origin is allowed.
+    // 1. CORS-Prüfung: Überprüft, ob die Anfrage-Domain erlaubt ist.
     if (ALLOWED_ORIGINS.includes(origin)) {
         res.setHeader('Access-Control-Allow-Origin', origin);
     } else {
-        // Block requests from unauthorized origins.
-        // For OPTIONS preflight requests, send a neutral response to avoid leaking info.
+        // Blockiert Anfragen von nicht autorisierten Domains.
+        // Bei OPTIONS Preflight-Anfragen wird eine neutrale Antwort gesendet, um keine Informationen preiszugeben.
         if (req.method !== 'OPTIONS') {
             return res.status(403).json({ error: 'Access from this origin is not permitted.' });
         }
     }
 
-    // Set necessary CORS headers.
+    // Setzt notwendige CORS-Header für Preflight- und eigentliche Anfragen.
     res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    res.setHeader('Access-control-allow-headers', 'Content-Type, X-Chatbot-Secret');
+    res.setHeader('Access-control-allow-headers', 'Content-Type');
 
-    // Handle OPTIONS preflight requests.
+    // Behandelt OPTIONS Preflight-Anfragen.
     if (req.method === 'OPTIONS') {
         return res.status(200).send();
     }
 
-    // 2. Security checks: HTTP method and secret header.
+    // 2. Sicherheitsprüfung: Erlaubt nur POST-Anfragen.
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Only POST requests are allowed.' });
     }
 
-
-
-// 3. Request processing.
+    // 3. Anfrageverarbeitung.
     const { history } = req.body;
 
     if (!history || history.length === 0) {
         return res.status(400).json({ error: 'Conversation history is missing.' });
     }
 
-    // Holen Sie die letzte Frage des Benutzers für RAG
+    // Holt die letzte Benutzerfrage für den RAG-Schritt.
     const lastUserQuestion = history[history.length - 1].parts;
 
     try {
-        console.info(lastUserQuestion);
         // --- 1. RAG-Schritt: Kontext holen ---
         const relevantContext = await getRelevantWebsiteContext(lastUserQuestion);
 
-        console.info(relevantContext)
         // --- 2. Prompt-Anreicherung ---
-        // Passen Sie Ihren System-Prompt an, um den RAG-Kontext zu nutzen
+        // Passt den System-Prompt an, um den RAG-Kontext einzuschließen.
         const DYNAMIC_SYSTEM_PROMPT = `
             ${SYSTEM_PROMPT}
 
@@ -194,11 +214,11 @@ export default async function (req, res) {
             }
         });
 
-        // Send the AI's response back to the frontend.
+        // Sendet die Antwort der KI an das Frontend zurück.
         return res.status(200).json({ answer: response.text });
 
         } catch (error) {
-        // Catch any errors from the Gemini API.
+        // Fängt alle Fehler von der Gemini API ab.
         console.error('Gemini API Error:', error);
         return res.status(500).json({ answer: "Sorry, there was a technical issue. Please try again later.", error: error.message });
     }

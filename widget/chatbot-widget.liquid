@@ -1,16 +1,16 @@
 {% comment %}
   KOKO - SHINKOKO GEMINI CHATBOT WIDGET
-  Version: 1.2.0
+  Version: 1.3.0
 
-  This file contains the complete code for the chatbot widget.
-  To install, copy this code into your Shopify theme's `theme.liquid` file
-  right before the closing `</body>` tag.
+  Diese Datei enthält den vollständigen Code für das Chatbot-Widget.
+  Zur Installation kopieren Sie diesen Code in die `theme.liquid`-Datei Ihres Shopify-Themes,
+  direkt vor dem schließenden `</body>`-Tag.
 
-  Configuration is done in the </script> section below.
+  Die Konfiguration erfolgt im <script></script>-Abschnitt weiter unten.
 {% endcomment %}
 
 <style>
-  /* Ensures the widget does not affect the page height. */
+  /* Stellt sicher, dass das Widget die Seitenhöhe nicht beeinflusst. */
   :root {
     --koko-chat-primary-color: #2c3e50;
     --koko-chat-button-size: 55px;
@@ -167,9 +167,9 @@
     border-bottom-left-radius: 4px;
   }
 
-  /* Style for links within bot messages for better visibility. */
+  /* Stile für Links in Bot-Nachrichten zur besseren Sichtbarkeit. */
   .koko-chat-message.koko-bot a {
-    color: #b2d8ff; /* A light blue, softer than pure white. */
+    color: #b2d8ff; /* Ein helles Blau, weicher als reines Weiß. */
     text-decoration: underline;
     text-decoration-thickness: 1px;
     text-underline-offset: 3px;
@@ -177,7 +177,7 @@
   }
 
   .koko-chat-message.koko-bot a:hover {
-    color: #ffffff; /* Brighten on hover */
+    color: #ffffff; /* Aufhellen beim Hover */
     text-decoration-thickness: 2px;
   }
   
@@ -286,7 +286,7 @@
     }
   }
 
-  /* Welcome Bubble Styles */
+  /* Stile für die Willkommens-Sprechblase */
   .koko-chat-welcome-bubble {
     position: absolute;
     bottom: calc(var(--koko-chat-button-size) + 15px);
@@ -303,7 +303,7 @@
     transition: opacity 0.4s ease, transform 0.4s ease;
     visibility: hidden;
     font-size: 0.95em;
-    pointer-events: none; /* So it doesn't block clicks */
+    pointer-events: none; /* Damit sie keine Klicks blockiert */
     line-height: 1.5;
   }
 
@@ -313,7 +313,7 @@
     visibility: visible;
   }
 
-  /* Animation for the whole widget */
+  /* Animation für das gesamte Widget */
   @keyframes koko-widget-slide-in {
     from {
       transform: translateY(calc(100% + var(--koko-chat-bottom-spacing)));
@@ -325,12 +325,12 @@
 </style>
 
 <div class="koko-chat-widget-container" id="koko-chat-widget">
-  <!-- Welcome Bubble -->
+  <!-- Willkommens-Sprechblase -->
   <div class="koko-chat-welcome-bubble">
     Konnichiwa! Mein Name ist Koko, Ihr virtueller Berater für authentischen japanischen Tee.
   </div>
 
-  <!-- Chat Window -->
+  <!-- Chat-Fenster -->
   <div class="koko-chat-window">
     <div class="koko-chat-header">
       <div>
@@ -344,7 +344,7 @@
       </button>
     </div>
     <div class="koko-chat-messages">
-      <!-- Chat messages will be appended here -->
+      <!-- Chat-Nachrichten werden hier eingefügt -->
     </div>
     <form class="koko-chat-form">
       <input type="text" placeholder="Frage stellen..." aria-label="Ihre Nachricht" required>
@@ -354,7 +354,7 @@
     </form>
   </div>
 
-  <!-- Chat Toggle Button -->
+  <!-- Button zum Ein-/Ausblenden des Chats -->
   <button class="koko-chat-button" aria-label="Chat öffnen">
     <svg class="koko-icon-chat" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>
     <svg class="koko-icon-close" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
@@ -364,22 +364,17 @@
 <script>
   document.addEventListener('DOMContentLoaded', () => {
     // ###################################################################################
-    // # CONFIGURATION: Adjust these two values to match your setup.
+    // # KONFIGURATION: Passen Sie diesen Wert an Ihr Setup an.
     // ###################################################################################
 
     /**
-     * The full URL of your Vercel Serverless Function.
-     * @example 'https://your-project-name.vercel.app/api/chat'
+     * Die vollständige URL Ihrer Vercel Serverless-Funktion.
+     * @example 'https://ihr-projektname.vercel.app/api/chat'
      */
     const PROXY_SERVER_URL = 'https://kokoproxy.vercel.app/api/chat';
 
-    /**
-     * The secret key for authenticating with the proxy server.
-     * This value MUST match the `CHATBOT_SECRET` environment variable in Vercel.
-     */
-
     // ###################################################################################
-    // # WIDGET LOGIC: Do not change anything below this line.
+    // # WIDGET-LOGIK: Ändern Sie nichts unterhalb dieser Zeile.
     // ###################################################################################
 
     const chatWidget = document.getElementById('koko-chat-widget');
@@ -389,11 +384,11 @@
     const inputField = chatForm.querySelector('input');
     const newChatButton = chatWidget.querySelector('#koko-new-chat-button');
 
-    // In-memory conversation history, loaded from sessionStorage or initialized.
+    // In-Memory-Konversationsverlauf, wird aus der sessionStorage geladen oder initialisiert.
     let conversationHistory = [];
 
     const hasStoredHistory = sessionStorage.getItem('koko-chat-history');
-    let wasChatOpen = sessionStorage.getItem('koko-chat-open-status') === 'true'; // Check if chat was previously open
+    let wasChatOpen = sessionStorage.getItem('koko-chat-open-status') === 'true'; // Prüft, ob der Chat zuvor geöffnet war.
 
     function saveHistory() {
       sessionStorage.setItem('koko-chat-history', JSON.stringify(conversationHistory));
@@ -405,15 +400,15 @@
 
     function resetChat() {
       if (confirm("Möchten Sie unser Gespräch zurücksetzen? Der bisherige Verlauf wird dabei gelöscht und wir können von Neuem beginnen.")) {
-        // 1. Clear storage and in-memory data
+        // 1. Speicher und In-Memory-Daten löschen
         sessionStorage.removeItem('koko-chat-history');
         sessionStorage.removeItem('koko-chat-open-status');
         conversationHistory = [];
 
-        // 2. Clear the UI display
+        // 2. Die UI-Anzeige leeren
         messagesContainer.innerHTML = '';
 
-        // 3. Add the initial welcome message back to the history and UI
+        // 3. Die anfängliche Willkommensnachricht wieder zum Verlauf und zur UI hinzufügen
         const initialMessage = {
           role: 'model',
           parts: [{ text: 'Herzlich willkommen bei Shinkoko. Ich bin Koko.\n\nAls Ihr persönlicher Experte für japanische Teespezialitäten stehe ich Ihnen gerne zur Seite. Haben Sie eine Frage oder suchen Sie eine Empfehlung?' }]
@@ -421,20 +416,20 @@
         conversationHistory.push(initialMessage);
         addMessage(initialMessage.parts[0].text, 'bot');
 
-        // 4. Save the new, clean state
+        // 4. Den neuen, sauberen Zustand speichern
         saveHistory();
-        saveChatOpenStatus(true); // Keep chat open for immediate use
+        saveChatOpenStatus(true); // Hält das Chat-Fenster für die sofortige Nutzung geöffnet
       }
     }
 
     function initializeChat() {
       if (hasStoredHistory) {
         conversationHistory = JSON.parse(hasStoredHistory);
-        // Clear existing messages
+        // Bestehende Nachrichten löschen
         messagesContainer.innerHTML = '';
-        // Re-render history
+        // Verlauf neu rendern
         conversationHistory.forEach(message => {
-          // The initial message from the model has a different structure.
+          // Die ursprüngliche Nachricht vom Modell hat eine andere Struktur.
           if (message.role === 'model') {
             addMessage(message.parts[0].text, 'bot');
           } else {
@@ -442,14 +437,14 @@
           }
         });
 
-        // If chat was open, open it again.
+        // Wenn der Chat geöffnet war, öffne ihn erneut.
         if (wasChatOpen) {
           chatWidget.classList.add('koko-chat-open');
         }
-        // No welcome bubble if history exists.
+        // Keine Willkommens-Sprechblase, wenn ein Verlauf existiert.
 
       } else {
-        // If no history, add the initial welcome message
+        // Wenn kein Verlauf existiert, die anfängliche Willkommensnachricht hinzufügen
         const initialMessage = {
           role: 'model',
           parts: [{ text: 'Herzlich willkommen bei Shinkoko. Ich bin Koko.\n\nAls Ihr persönlicher Experte für japanische Teespezialitäten stehe ich Ihnen gerne zur Seite. Haben Sie eine Frage oder suchen Sie eine Empfehlung?' }]
@@ -457,37 +452,37 @@
         conversationHistory.push(initialMessage);
         addMessage(initialMessage.parts[0].text, 'bot');
         saveHistory();
-        saveChatOpenStatus(false); // Chat starts closed if no history
+        saveChatOpenStatus(false); // Chat startet geschlossen, wenn kein Verlauf existiert
       }
     }
 
-    // --- Welcome Bubble Logic ---
+    // --- Logik für die Willkommens-Sprechblase ---
     const welcomeBubble = chatWidget.querySelector('.koko-chat-welcome-bubble');
 
     let showBubbleTimeout, hideBubbleTimeout;
 
-    // Only show welcome bubble if no history and chat is not open.
+    // Zeige die Sprechblase nur, wenn kein Verlauf existiert und der Chat nicht geöffnet ist.
     if (!hasStoredHistory && !wasChatOpen) {
-      // Show bubble after 3s if chat is not open.
+      // Zeige die Sprechblase nach 3s, wenn der Chat nicht geöffnet ist.
       showBubbleTimeout = setTimeout(() => {
         if (!chatWidget.classList.contains('koko-chat-open')) {
           welcomeBubble.classList.add('koko-is-visible');
         }
       }, 3000);
 
-      // Hide bubble after another 10s.
+      // Verberge die Sprechblase nach weiteren 10s.
       hideBubbleTimeout = setTimeout(() => {
         welcomeBubble.classList.remove('koko-is-visible');
-      }, 13000); // 3s delay + 10s visible
+      }, 13000); // 3s Verzögerung + 10s sichtbar
     }
 
-    // Toggle chat window open/closed.
+    // Schaltet das Chat-Fenster zwischen geöffnet und geschlossen um.
     toggleButton.addEventListener('click', () => {
       chatWidget.classList.toggle('koko-chat-open');
       const isOpen = chatWidget.classList.contains('koko-chat-open');
       saveChatOpenStatus(isOpen);
       
-      // Hide welcome bubble and clear timeouts if user interacts.
+      // Verberge die Willkommens-Sprechblase und lösche Timeouts, wenn der Benutzer interagiert.
       clearTimeout(showBubbleTimeout);
       clearTimeout(hideBubbleTimeout);
       welcomeBubble.classList.remove('koko-is-visible');
@@ -497,16 +492,16 @@
       }
     });
 
-    // New Chat Button Event Listener
+    // Event-Listener für den "Neuer Chat"-Button
     newChatButton.addEventListener('click', resetChat);
 
-    // Handle message submission.
+    // Verarbeitet die Nachrichtenübermittlung.
     chatForm.addEventListener('submit', (event) => {
       event.preventDefault();
       const userInput = inputField.value.trim();
       if (!userInput) return;
 
-      // Add user message to history and UI.
+      // Fügt die Benutzernachricht zum Verlauf und zur UI hinzu.
       addMessage(userInput, 'user');
       conversationHistory.push({ role: 'user', parts: [{ text: userInput }] });
       saveHistory();
@@ -514,42 +509,42 @@
       inputField.value = '';
       showThinkingIndicator();
       
-      // Fetch bot response.
+      // Holt die Antwort des Bots.
       fetchBotResponse();
     });
 
     /**
-     * Converts a markdown-like text to HTML.
-     * @param {string} text The text to convert.
-     * @returns {string} The HTML string.
+     * Konvertiert einen Markdown-ähnlichen Text in HTML.
+     * @param {string} text Der zu konvertierende Text.
+     * @returns {string} Der HTML-String.
      */
     function markdownToHtml(text) {
-      // 1. Escape HTML to prevent XSS.
+      // 1. HTML escapen, um XSS zu verhindern.
       const escapedText = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-      // 2. Handle bullet points.
+      // 2. Aufzählungspunkte behandeln.
       let formattedText = escapedText.replace(/^(\s*)\*\s/gm, '$1&bull; ');
 
-      // 3. Convert markdown to HTML.
+      // 3. Markdown in HTML umwandeln.
       formattedText = formattedText
-        .replace(/\*\*\*(.*?)\*\*\*/g, '<b><i>$1</i></b>') // Bold & Italic
-        .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')     // Bold
-        .replace(/\*(.*?)\*/g, '<i>$1</i>');      // Italic
+        .replace(/\*\*\*(.*?)\*\*\*/g, '<b><i>$1</i></b>') // Fett & Kursiv
+        .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')     // Fett
+        .replace(/\*(.*?)\*/g, '<i>$1</i>');      // Kursiv
 
-      // 4. Convert Markdown links to HTML links.
-      // This is done after other markdown to allow for formatted text within links,
-      // and to avoid corrupting URLs that might contain special characters like '*'.
+      // 4. Markdown-Links in HTML-Links umwandeln.
+      // Dies geschieht nach anderem Markdown, um formatierten Text innerhalb von Links zu ermöglichen
+      // und um zu vermeiden, dass URLs beschädigt werden, die Sonderzeichen wie '*' enthalten könnten.
       formattedText = formattedText.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
 
-      // 5. Convert newlines to <br>.
+      // 5. Zeilenumbrüche in <br> umwandeln.
       return formattedText.replace(/\n/g, '<br>');
     }
 
     /**
-     * Adds a message to the chat UI.
-     * @param {string} text The message text.
-     * @param {string} role The message role ('user' or 'bot').
-     * @returns {HTMLElement} The message element.
+     * Fügt eine Nachricht zur Chat-UI hinzu.
+     * @param {string} text Der Nachrichtentext.
+     * @param {string} role Die Rolle der Nachricht ('user' oder 'bot').
+     * @returns {HTMLElement} Das Nachrichtenelement.
      */
     function addMessage(text, role) {
       const messageElement = document.createElement('div');
@@ -566,7 +561,7 @@
       return messageElement;
     }
     
-    // Shows the thinking indicator.
+    // Zeigt den "Denken"-Indikator an.
     function showThinkingIndicator() {
       const indicator = document.createElement('div');
       indicator.classList.add('koko-chat-message', 'koko-bot', 'koko-thinking');
@@ -576,7 +571,7 @@
       scrollToBottom();
     }
 
-    // Removes the thinking indicator.
+    // Entfernt den "Denken"-Indikator.
     function removeThinkingIndicator() {
       const indicator = document.getElementById('koko-thinking-indicator');
       if (indicator) {
@@ -584,12 +579,12 @@
       }
     }
 
-    // Scrolls the message container to the bottom.
+    // Scrollt den Nachrichten-Container nach unten.
     function scrollToBottom() {
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
 
-    // Fetches the bot response from the proxy server.
+    // Holt die Antwort des Bots vom Proxy-Server.
     async function fetchBotResponse() {
       try {
         const response = await fetch(PROXY_SERVER_URL, {
@@ -610,7 +605,7 @@
         const data = await response.json();
         const botAnswer = data.answer;
 
-        // Add bot response to history and UI.
+        // Fügt die Bot-Antwort zum Verlauf und zur UI hinzu.
         addMessage(botAnswer, 'bot');
         conversationHistory.push({ role: 'model', parts: [{ text: botAnswer }] });
         saveHistory();
