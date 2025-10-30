@@ -180,7 +180,7 @@ Extrahierte Suchbegriffe:`;
             }
         });
 
-        const keywords = response.text;
+        const keywords = response.response.text().trim();
         
         console.log(`Originalfrage: "${userQuestion}" | Extrahierte Keywords: "${keywords}"`);
         
@@ -242,7 +242,6 @@ export default async function (req, res) {
 
     // Holt die letzte Benutzerfrage für den RAG-Schritt.
     const lastUserQuestion = history[history.length - 1].parts[0].text;
-    console.log(`Letzte Nutzerfrage: "${lastUserQuestion}"`);
 
     try {
         // --- 1. Keyword-Extraktion ---
