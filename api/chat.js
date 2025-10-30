@@ -179,7 +179,7 @@ Extrahierte Suchbegriffe:`;
             }
         });
 
-        const keywords = response.response.text().trim();
+        const keywords = response.text;
         
         console.log(`Originalfrage: "${userQuestion}" | Extrahierte Keywords: "${keywords}"`);
         
