@@ -77,7 +77,7 @@ const ALLOWED_ORIGINS = [
  * Loaded from environment variables, this must match the `X-Chatbot-Secret` header
  * sent by the frontend for an additional layer of security.
  */
-const SECRET_HEADER_VALUE = process.env.CHATBOT_SECRET;
+
 const GOOGLE_SEARCH_API_KEY = process.env.GOOGLE_SEARCH_API_KEY;
 const GOOGLE_SEARCH_CX = process.env.GOOGLE_SEARCH_CX;
 
@@ -154,13 +154,7 @@ export default async function (req, res) {
         return res.status(405).json({ error: 'Only POST requests are allowed.' });
     }
 
-    // Validate the secret header if configured.
-    if (SECRET_HEADER_VALUE) {
-        const providedSecret = req.headers['x-chatbot-secret'];
-        if (providedSecret !== SECRET_HEADER_VALUE) {
-             return res.status(403).json({ error: 'Invalid security token.' });
-        }
-    }
+
 
 // 3. Request processing.
     const { history } = req.body;

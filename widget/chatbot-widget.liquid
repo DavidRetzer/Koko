@@ -377,7 +377,6 @@
      * The secret key for authenticating with the proxy server.
      * This value MUST match the `CHATBOT_SECRET` environment variable in Vercel.
      */
-    const CHATBOT_SECRET = 'Ihr-geheimer-schluessel-hier-einfuegen';
 
     // ###################################################################################
     // # WIDGET LOGIC: Do not change anything below this line.
@@ -596,8 +595,7 @@
         const response = await fetch(PROXY_SERVER_URL, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'X-Chatbot-Secret': CHATBOT_SECRET
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({ history: conversationHistory })
         });
